@@ -13,3 +13,169 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum SpecialtyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Specialty {
+  id          String          @id @default(uuid())
+  name        String
+  slug        String          @unique
+  description String?
+  status      SpecialtyStatus @default(ACTIVE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  doctors     DoctorSpecialty[]
+  services    Service[]
+
+  @@index([status])
+}
+
+enum DoctorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Doctor {
+  id             String             @id @default(uuid())
+  fullName       String
+  phone          String?
+  email          String?
+  licenseNumber  String?            @unique
+  title          String?
+  bio            String?
+  avatarUrl      String?
+  status         DoctorStatus      @default(ACTIVE)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  specialties    DoctorSpecialty[]
+  schedules      WorkingSchedule[]
+  exceptions     ScheduleException[]
+  appointments   Appointment[]
+}
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Service {
+  id              String        @id @default(uuid())
+  specialtyId     String?
+  name            String
+  slug            String        @unique
+  description     String?
+  durationMinutes Int
+  price           BigInt
+  status          ServiceStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  specialty       Specialty?    @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+  appointments    Appointment[]
+
+  @@index([specialtyId])
+  @@index([status])
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model WorkingSchedule {
+  id                  String         @id @default(uuid())
+  doctorId            String
+  dayOfWeek           Int
+  startTime           String
+  endTime             String
+  slotDurationMinutes Int
+  effectiveFrom       DateTime       @db.Date
+  effectiveTo         DateTime?      @db.Date
+  status              ScheduleStatus @default(ACTIVE)
+  doctor              Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, dayOfWeek, status])
+  @@unique([doctorId, dayOfWeek, startTime, effectiveFrom])
+}
+
+enum ScheduleExceptionType {
+  DAY_OFF
+  CUSTOM_HOURS
+}
+
+model ScheduleException {
+  id            String                 @id @default(uuid())
+  doctorId      String
+  exceptionDate DateTime               @db.Date
+  startTime     String?
+  endTime       String?
+  type          ScheduleExceptionType
+  reason        String?
+  doctor        Doctor                 @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, exceptionDate])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  bookingCode     String            @unique
+  patientId       String?
+  patientName     String
+  patientPhone    String
+  patientEmail    String?
+  doctorId        String
+  specialtyId     String?
+  serviceId       String
+  appointmentDate DateTime          @db.Date
+  startTime       String
+  endTime         String
+  status          AppointmentStatus @default(PENDING)
+  patientNote     String?
+  staffNote       String?
+  cancelReason    String?
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  service         Service           @relation(fields: [serviceId], references: [id])
+  statusHistory   AppointmentStatusHistory[]
+
+  @@index([doctorId, appointmentDate, startTime, status])
+  @@index([bookingCode])
+  @@unique([doctorId, appointmentDate, startTime, status])
+}
+
+model AppointmentStatusHistory {
+  id            String            @id @default(uuid())
+  appointmentId String
+  fromStatus    AppointmentStatus?
+  toStatus      AppointmentStatus
+  reason        String?
+  changedBy     String?
+  createdAt     DateTime          @default(now())
+  appointment   Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId, createdAt])
+}
+
+model DoctorSpecialty {
+  doctorId    String
+  specialtyId String
+  doctor      Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([doctorId, specialtyId])
+  @@index([specialtyId])
+}

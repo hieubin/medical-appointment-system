@@ -16,6 +16,14 @@ export function errorHandler(err, _req, res, _next) {
     });
   }
 
+  if (err.code === "P2002") {
+    return res.status(409).json({
+      success: false,
+      message: "Dữ liệu đã tồn tại.",
+      errors: err.meta?.target || [],
+    });
+  }
+
   console.error(err);
   res.status(err.status || 500).json({
     success: false,

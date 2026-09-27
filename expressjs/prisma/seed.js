@@ -1,4 +1,5 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -108,9 +109,109 @@ const services = [
   },
 ];
 
+const appointments = [
+  {
+    bookingCode: "SEED-PENDING-2027",
+    patientName: "Nguyễn An Test",
+    patientPhone: "0900000101",
+    doctorLicense: "VN-001",
+    serviceSlug: "kham-tim-mach",
+    specialtySlug: "tim-mach",
+    appointmentDate: "2027-01-04",
+    startTime: "08:00",
+    status: "PENDING",
+  },
+  {
+    bookingCode: "SEED-CONFIRMED-2027",
+    patientName: "Trần Bình Test",
+    patientPhone: "0900000102",
+    doctorLicense: "VN-001",
+    serviceSlug: "kham-noi-tong-quat",
+    specialtySlug: "noi-tong-quat",
+    appointmentDate: "2027-01-04",
+    startTime: "08:30",
+    status: "CONFIRMED",
+  },
+  {
+    bookingCode: "SEED-CANCELLED-2027",
+    patientName: "Lê Chi Test",
+    patientPhone: "0900000103",
+    doctorLicense: "VN-002",
+    serviceSlug: "kham-nhi-khoa",
+    specialtySlug: "nhi-khoa",
+    appointmentDate: "2027-01-04",
+    startTime: "09:00",
+    status: "CANCELLED",
+  },
+  {
+    bookingCode: "SEED-COMPLETED-2027",
+    patientName: "Phạm Dũng Test",
+    patientPhone: "0900000104",
+    doctorLicense: "VN-003",
+    serviceSlug: "kham-co-xuong-khop",
+    specialtySlug: "co-xuong-khop",
+    appointmentDate: "2027-01-04",
+    startTime: "09:30",
+    status: "COMPLETED",
+  },
+  {
+    bookingCode: "SEED-NO-SHOW-2027",
+    patientName: "Võ Hà Test",
+    patientPhone: "0900000105",
+    doctorLicense: "VN-003",
+    serviceSlug: "kham-co-xuong-khop",
+    specialtySlug: "co-xuong-khop",
+    appointmentDate: "2027-01-04",
+    startTime: "10:00",
+    status: "NO_SHOW",
+  },
+];
+
+const demoUsers = [
+  {
+    email: "admin@clinic.test",
+    password: "Admin123!",
+    fullName: "Clinic Admin",
+    role: "ADMIN",
+  },
+  {
+    email: "staff@clinic.test",
+    password: "Staff123!",
+    fullName: "Clinic Staff",
+    role: "STAFF",
+  },
+  {
+    email: "patient@clinic.test",
+    password: "Patient123!",
+    fullName: "Demo Patient",
+    role: "PATIENT",
+  },
+];
+
 async function main() {
   const specialtyRecords = new Map();
   const doctorRecords = new Map();
+  const serviceRecords = new Map();
+
+  for (const demoUser of demoUsers) {
+    const passwordHash = await bcrypt.hash(demoUser.password, 10);
+    await prisma.user.upsert({
+      where: { email: demoUser.email },
+      update: {
+        passwordHash,
+        fullName: demoUser.fullName,
+        role: demoUser.role,
+        status: "ACTIVE",
+      },
+      create: {
+        email: demoUser.email,
+        passwordHash,
+        fullName: demoUser.fullName,
+        role: demoUser.role,
+        status: "ACTIVE",
+      },
+    });
+  }
 
   for (const specialty of specialties) {
     const record = await prisma.specialty.upsert({
@@ -166,7 +267,7 @@ async function main() {
   for (const service of services) {
     const specialtyRecord = specialtyRecords.get(service.specialtySlug);
 
-    await prisma.service.upsert({
+    const serviceRecord = await prisma.service.upsert({
       where: { slug: service.slug },
       update: {
         description: service.description,
@@ -186,6 +287,7 @@ async function main() {
         specialtyId: specialtyRecord.id,
       },
     });
+    serviceRecords.set(service.slug, serviceRecord);
   }
 
   const effectiveFrom = new Date("2025-01-01T00:00:00.000Z");
@@ -225,8 +327,65 @@ async function main() {
     }
   }
 
+  for (const appointment of appointments) {
+    const doctorRecord = doctorRecords.get(appointment.doctorLicense);
+    const serviceRecord = serviceRecords.get(appointment.serviceSlug);
+    const specialtyRecord = specialtyRecords.get(appointment.specialtySlug);
+    const appointmentDate = new Date(`${appointment.appointmentDate}T00:00:00.000Z`);
+    const [hours, minutes] = appointment.startTime.split(":").map(Number);
+    const endMinutes = hours * 60 + minutes + serviceRecord.durationMinutes;
+    const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+    const now = new Date();
+
+    const record = await prisma.appointment.upsert({
+      where: { bookingCode: appointment.bookingCode },
+      update: {
+        patientName: appointment.patientName,
+        patientPhone: appointment.patientPhone,
+        doctorId: doctorRecord.id,
+        specialtyId: specialtyRecord.id,
+        serviceId: serviceRecord.id,
+        appointmentDate,
+        startTime: appointment.startTime,
+        endTime,
+        status: appointment.status,
+        confirmedAt: appointment.status === "CONFIRMED" ? now : null,
+        cancelledAt: appointment.status === "CANCELLED" ? now : null,
+        completedAt: appointment.status === "COMPLETED" ? now : null,
+        cancelReason: appointment.status === "CANCELLED" ? "Bản ghi mẫu seed." : null,
+      },
+      create: {
+        bookingCode: appointment.bookingCode,
+        patientName: appointment.patientName,
+        patientPhone: appointment.patientPhone,
+        doctorId: doctorRecord.id,
+        specialtyId: specialtyRecord.id,
+        serviceId: serviceRecord.id,
+        appointmentDate,
+        startTime: appointment.startTime,
+        endTime,
+        status: appointment.status,
+        confirmedAt: appointment.status === "CONFIRMED" ? now : null,
+        cancelledAt: appointment.status === "CANCELLED" ? now : null,
+        completedAt: appointment.status === "COMPLETED" ? now : null,
+        cancelReason: appointment.status === "CANCELLED" ? "Bản ghi mẫu seed." : null,
+      },
+    });
+
+    await prisma.appointmentStatusHistory.deleteMany({
+      where: { appointmentId: record.id },
+    });
+    await prisma.appointmentStatusHistory.create({
+      data: {
+        appointmentId: record.id,
+        toStatus: appointment.status,
+        reason: "Trạng thái ban đầu của dữ liệu seed.",
+      },
+    });
+  }
+
   console.log(
-    `Seeded ${specialties.length} specialties, ${doctors.length} doctors, ${services.length} services, and schedules.`,
+    `Seeded ${demoUsers.length} demo users, ${specialties.length} specialties, ${doctors.length} doctors, ${services.length} services, schedules, and ${appointments.length} appointments covering all statuses.`,
   );
 }
 

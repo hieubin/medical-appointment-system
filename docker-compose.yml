@@ -47,6 +47,7 @@ services:
     environment:
       PORT: 4000
       CLIENT_URL: http://localhost:3000
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-before-deploying-123456}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-medical_appointment}?schema=public
     ports:
       - "4000:4000"

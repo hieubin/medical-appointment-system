@@ -1,0 +1,8 @@
+{
+  "title": "Medistra - Medical Appointment System",
+  "description": "Healthcare appointments without the waiting.",
+  "language": "vi",
+  "robots": {
+    "index": true
+  }
+}

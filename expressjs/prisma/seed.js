@@ -80,7 +80,7 @@ const services = [
     slug: "kham-noi-tong-quat",
     description: "Khám và tư vấn các bệnh lý nội khoa thường gặp.",
     durationMinutes: 30,
-    price: 300000n,
+    price: 300000,
     specialtySlug: "noi-tong-quat",
   },
   {
@@ -88,7 +88,7 @@ const services = [
     slug: "kham-tim-mach",
     description: "Khám và tư vấn các bệnh lý tim mạch.",
     durationMinutes: 30,
-    price: 400000n,
+    price: 400000,
     specialtySlug: "tim-mach",
   },
   {
@@ -96,7 +96,7 @@ const services = [
     slug: "kham-nhi-khoa",
     description: "Khám và tư vấn sức khỏe cho trẻ em.",
     durationMinutes: 30,
-    price: 250000n,
+    price: 250000,
     specialtySlug: "nhi-khoa",
   },
   {
@@ -104,7 +104,7 @@ const services = [
     slug: "kham-co-xuong-khop",
     description: "Khám và điều trị các bệnh lý cơ xương khớp.",
     durationMinutes: 30,
-    price: 350000n,
+    price: 350000,
     specialtySlug: "co-xuong-khop",
   },
 ];

@@ -62,7 +62,6 @@ npm run dev
 | Role | Email | Password |
 |------|-------|----------|
 | Admin | admin@clinic.test | Admin123! |
-| Staff | staff@clinic.test | Staff123! |
 | Patient | patient@clinic.test | Patient123! |
 
 ## Deploy Render (SQLite persistent)

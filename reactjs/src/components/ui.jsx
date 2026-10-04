@@ -47,6 +47,14 @@ export function Icon({ name, size = 18, className = "" }) {
     doctor: <><circle cx="12" cy="8" r="5" /><path d="M12 5v14M7 10h5M12 10v5" /></>,
     chart: <><path d="M18 20V10M12 20V4M6 20v-6" /></>,
     help: <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></>,
+    // Icons bổ sung
+    filter: <><path d="M3 5h18M7 12h10M10 19h4" /></>,
+    download: <><path d="M12 3v12m-5-5 5 5 5-5M5 21h14" /></>,
+    refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 8a7 7 0 0 1 12-2l2 2M4 16l2 2a7 7 0 0 0 12-2" /></>,
+    edit: <><path d="m15 5 4 4L8 20H4v-4L15 5Z" /><path d="m13 7 4 4" /></>,
+    inbox: <><path d="M4 5h16l2 10v4H2v-4L4 5Z" /><path d="M2 15h6l1.5 2h5L16 15h6" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
+    clipboard: <><path d="M6 5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6Z" /><path d="M8 3H6a2 2 0 0 0-2 2v1m12-3h1a2 2 0 0 1 2 2v1" /></>,
   };
 
   return (

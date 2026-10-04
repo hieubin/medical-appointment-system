@@ -833,11 +833,28 @@ input[type=checkbox]{accent-color:var(--teal)}.quick-actions{display:flex;gap:5p
 .health-metrics strong{font-size:1.1rem}
 .health-metrics strong i{color:var(--muted);font-size:.56rem;font-style:normal;font-weight:500}
 .health-metrics small{color:var(--green);font-size:.5rem}
-.quick-actions{grid-column:2}
-.quick-actions>.btn{width:100%;min-height:2.8rem;padding:0 1rem;border-bottom:1px solid var(--border);border-radius:0;justify-content:flex-start}
-.quick-actions>.btn:last-child{border-bottom:0}
-.quick-actions>.btn span{flex:1;text-align:left}
+/* Admin table quick-actions - must override patient portal styles */
+.table-card .quick-actions,
+.admin-shell .quick-actions {
+  display: flex;
+  gap: 5px;
+}
 .btn.square{padding:0;width:2rem;height:2rem;min-width:0;justify-content:center}
+/* Patient portal quick-actions sidebar */
+.portal-quick-actions{grid-column:2}
+.portal-quick-actions>.btn{width:100%;min-height:2.8rem;padding:0 1rem;border-bottom:1px solid var(--border);border-radius:0;justify-content:flex-start;border-left:0;border-right:0;border-top:0;background:#fff;color:#475569;font-size:11px}
+.portal-quick-actions>.btn:last-child{border-bottom:0}
+.portal-quick-actions>.btn span{flex:1;text-align:left}
+
+/* Booking Modal */
+.doctor-list {display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;}
+.doctor-option {display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;}
+.doctor-option:hover {border-color: var(--teal); background: var(--teal-soft);}
+.doctor-option.selected {border-color: var(--teal); background: var(--teal-soft); box-shadow: inset 3px 0 var(--teal);}
+.doctor-option .avatar {width: 40px; height: 40px; flex-shrink: 0;}
+.doctor-option div {display: flex; flex-direction: column; gap: 2px;}
+.doctor-option strong {font-size: 13px; color: #1e293b;}
+.doctor-option small {font-size: 11px; color: var(--muted);}
 
 @media(max-width:64rem){
   .patient-header{padding:0 1.5rem}
@@ -859,3 +876,6 @@ input[type=checkbox]{accent-color:var(--teal)}.quick-actions{display:flex;gap:5p
   .appointment-details,.health-metrics{grid-template-columns:1fr}
   .health-metrics>div{border-right:0;border-bottom:1px solid var(--border)}
 }
+
+/* Admin loading */
+.admin-loading{display:flex;align-items:center;justify-content:center;padding:48px;color:#64748b;font-size:13px}

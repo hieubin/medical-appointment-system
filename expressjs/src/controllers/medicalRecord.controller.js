@@ -3,8 +3,9 @@ import { success, fail } from "../views/json.view.js";
 
 export async function getRecords(req, res) {
   try {
+    const userId = req.auth?.user?.id || req.user?.id;
     const record = await prisma.medicalRecord.findFirst({
-      where: { userId: req.user.id },
+      where: { userId },
       orderBy: { createdAt: "desc" },
     });
     return success(res, record);
@@ -16,9 +17,10 @@ export async function getRecords(req, res) {
 
 export async function createRecord(req, res) {
   try {
+    const userId = req.auth?.user?.id || req.user?.id;
     const record = await prisma.medicalRecord.create({
       data: {
-        userId: req.user.id,
+        userId,
         ...req.body,
       },
     });
@@ -31,8 +33,9 @@ export async function createRecord(req, res) {
 
 export async function updateRecord(req, res) {
   try {
+    const userId = req.auth?.user?.id || req.user?.id;
     const record = await prisma.medicalRecord.findFirst({
-      where: { id: req.params.id, userId: req.user.id },
+      where: { id: req.params.id, userId },
     });
 
     if (!record) {

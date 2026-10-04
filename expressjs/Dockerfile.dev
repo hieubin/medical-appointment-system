@@ -6,7 +6,7 @@ COPY package.json ./
 RUN npm install
 
 COPY prisma ./prisma
-ENV DATABASE_URL="postgresql://postgres:postgres@postgres:5432/medical_appointment?schema=public"
+ENV DATABASE_URL="file:./prisma/data/medical.db"
 RUN npx prisma generate
 
 EXPOSE 4000

@@ -15,7 +15,7 @@ export { Logo, Heading, Icon, Button, TextField, LinkButton, StatusBadge };
 
 // ─── PATIENT PORTAL ────────────────────────────────────────────────────────────
 
-export function PatientPortal({ onAdmin }) {
+export function PatientPortal({ onAdmin, onLogout }) {
   const [user, setUser] = useState(null);
   const [searchSpecialty, setSearchSpecialty] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
@@ -180,7 +180,7 @@ export function PatientPortal({ onAdmin }) {
                   <Icon name="user" size={14} /> Xem hồ sơ
                 </button>
                 <div className="dropdown-divider" />
-                <button className="dropdown-item danger" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('auth'); }}>
+                <button className="dropdown-item danger" onClick={() => { if (onLogout) onLogout(); else { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.reload(); } }}>
                   <Icon name="log-out" size={14} /> Đăng xuất
                 </button>
               </div>
@@ -732,6 +732,6 @@ export default function App() {
   };
 
   if (screen === "dashboard") return <AdminDashboard onLogout={handleLogout} onPatient={() => setScreen("patient")} />;
-  if (screen === "patient") return <PatientPortal onAdmin={() => setScreen("dashboard")} />;
+  if (screen === "patient") return <PatientPortal onAdmin={() => setScreen("dashboard")} onLogout={handleLogout} />;
   return <AuthScreen mode={screen} navigate={setScreen} />;
 }

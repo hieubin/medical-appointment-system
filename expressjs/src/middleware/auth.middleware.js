@@ -41,6 +41,7 @@ export async function authenticate(req, res, next) {
     if (!session) return fail(res, "Phiên đăng nhập đã hết hạn hoặc bị thu hồi.", 401);
 
     req.auth = { sessionId: session.id, user: session.user };
+    req.user = session.user;
     return next();
   } catch {
     return fail(res, "Token không hợp lệ hoặc đã hết hạn.", 401);
@@ -55,3 +56,6 @@ export function requireRoles(...roles) {
     return next();
   };
 }
+
+export const requireAuth = authenticate;
+export const requireRole = requireRoles;

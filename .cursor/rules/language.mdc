@@ -1,0 +1,7 @@
+---
+description: Always respond in Vietnamese.
+globs:
+alwaysApply: true
+---
+
+Please always respond in Vietnamese.

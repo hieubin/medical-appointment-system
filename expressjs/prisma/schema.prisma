@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -13,22 +13,11 @@ model User {
   passwordHash String
   fullName     String
   phone        String?
-  role         UserRole      @default(PATIENT)
-  status       UserStatus    @default(ACTIVE)
+  role         String        @default("PATIENT")
+  status       String        @default("ACTIVE")
   sessions     AuthSession[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-}
-
-enum UserRole {
-  ADMIN
-  STAFF
-  PATIENT
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
 }
 
 model AuthSession {
@@ -42,28 +31,18 @@ model AuthSession {
   @@index([userId, revokedAt])
 }
 
-enum SpecialtyStatus {
-  ACTIVE
-  INACTIVE
-}
-
 model Specialty {
-  id          String          @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  slug        String          @unique
+  slug        String   @unique
   description String?
-  status      SpecialtyStatus @default(ACTIVE)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   doctors     DoctorSpecialty[]
   services    Service[]
 
   @@index([status])
-}
-
-enum DoctorStatus {
-  ACTIVE
-  INACTIVE
 }
 
 model Doctor {
@@ -75,7 +54,7 @@ model Doctor {
   title          String?
   bio            String?
   avatarUrl      String?
-  status         DoctorStatus      @default(ACTIVE)
+  status         String             @default("ACTIVE")
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   specialties    DoctorSpecialty[]
@@ -84,79 +63,56 @@ model Doctor {
   appointments   Appointment[]
 }
 
-enum ServiceStatus {
-  ACTIVE
-  INACTIVE
-}
-
 model Service {
-  id              String        @id @default(uuid())
+  id              String   @id @default(uuid())
   specialtyId     String?
   name            String
-  slug            String        @unique
+  slug            String   @unique
   description     String?
   durationMinutes Int
-  price           BigInt
-  status          ServiceStatus @default(ACTIVE)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  specialty       Specialty?    @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+  price           Int
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  specialty       Specialty? @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
   appointments    Appointment[]
 
   @@index([specialtyId])
   @@index([status])
 }
 
-enum ScheduleStatus {
-  ACTIVE
-  INACTIVE
-}
-
 model WorkingSchedule {
-  id                  String         @id @default(uuid())
+  id                  String   @id @default(uuid())
   doctorId            String
   dayOfWeek           Int
   startTime           String
   endTime             String
   slotDurationMinutes Int
-  effectiveFrom       DateTime       @db.Date
-  effectiveTo         DateTime?      @db.Date
-  status              ScheduleStatus @default(ACTIVE)
-  doctor              Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  effectiveFrom       DateTime
+  effectiveTo         DateTime?
+  status              String   @default("ACTIVE")
+  doctor              Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@index([doctorId, dayOfWeek, status])
   @@unique([doctorId, dayOfWeek, startTime, effectiveFrom])
 }
 
-enum ScheduleExceptionType {
-  DAY_OFF
-  CUSTOM_HOURS
-}
-
 model ScheduleException {
-  id            String                 @id @default(uuid())
+  id            String   @id @default(uuid())
   doctorId      String
-  exceptionDate DateTime               @db.Date
+  exceptionDate DateTime
   startTime     String?
   endTime       String?
-  type          ScheduleExceptionType
+  type          String
   reason        String?
-  doctor        Doctor                 @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor        Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@unique([doctorId, exceptionDate])
 }
 
-enum AppointmentStatus {
-  PENDING
-  CONFIRMED
-  CANCELLED
-  COMPLETED
-  NO_SHOW
-}
-
 model Appointment {
-  id              String            @id @default(uuid())
-  bookingCode     String            @unique
+  id              String   @id @default(uuid())
+  bookingCode     String   @unique
   patientId       String?
   patientName     String
   patientPhone    String
@@ -164,36 +120,36 @@ model Appointment {
   doctorId        String
   specialtyId     String?
   serviceId       String
-  appointmentDate DateTime          @db.Date
+  appointmentDate DateTime
   startTime       String
   endTime         String
-  status          AppointmentStatus @default(PENDING)
+  status          String   @default("PENDING")
   patientNote     String?
   staffNote       String?
   cancelReason    String?
   confirmedAt     DateTime?
   cancelledAt     DateTime?
   completedAt     DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  doctor          Doctor            @relation(fields: [doctorId], references: [id])
-  service         Service           @relation(fields: [serviceId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  doctor          Doctor   @relation(fields: [doctorId], references: [id])
+  service         Service  @relation(fields: [serviceId], references: [id])
   statusHistory   AppointmentStatusHistory[]
 
   @@index([doctorId, appointmentDate, startTime, status])
   @@index([bookingCode])
-  @@unique([doctorId, appointmentDate, startTime, status])
+  @@unique([doctorId, appointmentDate, startTime])
 }
 
 model AppointmentStatusHistory {
-  id            String            @id @default(uuid())
+  id            String   @id @default(uuid())
   appointmentId String
-  fromStatus    AppointmentStatus?
-  toStatus      AppointmentStatus
+  fromStatus    String?
+  toStatus      String
   reason        String?
   changedBy     String?
-  createdAt     DateTime          @default(now())
-  appointment   Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   @@index([appointmentId, createdAt])
 }

@@ -105,16 +105,17 @@ export async function createAppointment(input) {
       const appointment = await tx.appointment.create({
         data: {
           bookingCode: bookingCode(),
+          patientId: input.patientId || null,
           patientName: input.patientName,
           patientPhone: input.patientPhone,
-          patientEmail: input.patientEmail,
+          patientEmail: input.patientEmail || null,
           doctorId: input.doctorId,
           specialtyId: slot.specialtyId ?? input.specialtyId,
           serviceId: input.serviceId,
           appointmentDate: slot.appointmentDate,
           startTime: input.startTime,
           endTime: slot.endTime,
-          patientNote: input.patientNote,
+          patientNote: input.patientNote || null,
           statusHistory: {
             create: { toStatus: "PENDING", reason: "Bệnh nhân tạo lịch hẹn." },
           },
@@ -189,3 +190,36 @@ export async function cancelAppointment(id, input) {
   });
   return updated;
 }
+
+export async function getMyAppointments(user) {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      OR: [
+        ...(user.id ? [{ patientId: user.id }] : []),
+        ...(user.phone ? [{ patientPhone: user.phone }] : []),
+        ...(user.email ? [{ patientEmail: user.email }] : []),
+      ],
+    },
+    orderBy: [{ appointmentDate: "desc" }, { startTime: "desc" }],
+    select: {
+      id: true,
+      bookingCode: true,
+      patientName: true,
+      patientPhone: true,
+      patientEmail: true,
+      appointmentDate: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+      patientNote: true,
+      cancelReason: true,
+      doctor: { select: { id: true, fullName: true, title: true } },
+      service: { select: { id: true, name: true, price: true } },
+    },
+  });
+
+  return appointments.map((appointment) => ({
+    ...appointment,
+    service: { ...appointment.service, price: appointment.service.price.toString() },
+  }));
+}

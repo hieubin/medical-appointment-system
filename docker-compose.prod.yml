@@ -1,43 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: medical_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-medical_appointment}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-medical_appointment}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  pgadmin:
-    build:
-      context: ./docker/pgadmin
-    container_name: medical_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin:/var/lib/pgadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   backend:
     build:
       context: ./expressjs
@@ -47,13 +8,12 @@ services:
     environment:
       PORT: 4000
       CLIENT_URL: http://localhost:3000
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting production services}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-medical_appointment}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-before-deploying-123456}
+      DATABASE_URL: file:./data/medical.db
     ports:
       - "4000:4000"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    volumes:
+      - backend_data:/app/prisma/data
 
   frontend:
     build:
@@ -67,5 +27,5 @@ services:
       - backend
 
 volumes:
-  pgdata:
-  pgadmin:
+  backend_data:
+

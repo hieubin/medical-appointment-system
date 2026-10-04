@@ -118,9 +118,21 @@ export function TextField({
   id,
   className = "",
   autoComplete,
+  onClick,
+  onClear,
   ...props
 }) {
+  const inputRef = React.useRef(null);
   const inputId = id || name || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+
+  const handleWrapClick = (e) => {
+    if (type === "date") {
+      try {
+        inputRef.current?.showPicker?.();
+      } catch {}
+    }
+  };
+
   return (
     <div className={`field ${error ? "field-error" : ""} ${className}`.trim()}>
       {label && (
@@ -128,9 +140,13 @@ export function TextField({
           {label} {required && <b>*</b>}
         </label>
       )}
-      <div className={`input-wrap ${icon ? "has-icon" : ""}`}>
+      <div
+        className={`input-wrap ${icon ? "has-icon" : ""} ${type === "date" ? "is-date-input" : ""}`}
+        onClick={handleWrapClick}
+      >
         {icon && <span className="field-icon">{icon}</span>}
         <input
+          ref={inputRef}
           id={inputId}
           name={name}
           type={type}
@@ -139,8 +155,30 @@ export function TextField({
           onChange={onChange}
           required={required}
           autoComplete={autoComplete}
+          onClick={(e) => {
+            if (type === "date") {
+              try {
+                e.target.showPicker?.();
+              } catch {}
+            }
+            onClick?.(e);
+          }}
           {...props}
         />
+        {type === "date" && Boolean(value) && Boolean(onClear) && (
+          <button
+            type="button"
+            className="input-clear-btn"
+            title="Xóa ngày đã chọn"
+            aria-label="Xóa ngày đã chọn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
+          >
+            ×
+          </button>
+        )}
       </div>
       {error && <small className="field-error-text">{error}</small>}
     </div>

@@ -57,5 +57,49 @@ export function requireRoles(...roles) {
   };
 }
 
+export async function optionalAuth(req, _res, next) {
+  const authorization = req.get("authorization");
+  const token = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : null;
+
+  if (!token) return next();
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (typeof payload === "object" && payload.sessionId && payload.sub) {
+      const session = await prisma.authSession.findFirst({
+        where: {
+          id: payload.sessionId,
+          userId: payload.sub,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          user: { status: "ACTIVE" },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              phone: true,
+              role: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (session) {
+        req.auth = { sessionId: session.id, user: session.user };
+        req.user = session.user;
+      }
+    }
+  } catch {
+    // ignore optional auth errors
+  }
+  return next();
+}
+
 export const requireAuth = authenticate;
-export const requireRole = requireRoles;
+export const requireRole = requireRoles;

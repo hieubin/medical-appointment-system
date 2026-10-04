@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon --legacy-watch --polling-interval 500 --signal SIGTERM --ext js,json --watch src --ignore src/tests src/server.js",
+    "dev": "nodemon --ext js,json --watch src src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",

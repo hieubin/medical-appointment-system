@@ -27,23 +27,42 @@ export function PatientPortal({ onAdmin }) {
   const [loading, setLoading] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [error, setError] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showAllDoctors, setShowAllDoctors] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [medicalRecord, setMedicalRecord] = useState(null);
+  const [profileForm, setProfileForm] = useState({});
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     try { const stored = localStorage.getItem("user"); if (stored) setUser(JSON.parse(stored)); } catch {}
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!e.target.closest('.patient-avatar-wrapper')) setShowUserMenu(false);
+    };
+    if (showUserMenu) document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [showUserMenu]);
+
   const initials = user?.fullName ? user.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "LT";
 
-  // Fetch doctors for booking
+  // Fetch doctors for booking or viewing
   useEffect(() => {
-    if (showBooking) {
+    if (showBooking || showAllDoctors) {
       setLoading(true);
       api.get('/doctors')
         .then(r => setDoctors(r.data?.data || []))
         .catch(() => setDoctors([]))
         .finally(() => setLoading(false));
     }
-  }, [showBooking]);
+  }, [showBooking, showAllDoctors]);
 
   const handleBookAppointment = () => {
     setShowBooking(true);
@@ -58,7 +77,7 @@ export function PatientPortal({ onAdmin }) {
       setError('Vui lòng chọn bác sĩ và chuyên khoa');
       return;
     }
-    setLoading(true);
+    setBookingLoading(true);
     setError(null);
     try {
       await api.post('/appointments', {
@@ -72,7 +91,60 @@ export function PatientPortal({ onAdmin }) {
     } catch (err) {
       setError(err.response?.data?.message || 'Đặt lịch thất bại');
     } finally {
-      setLoading(false);
+      setBookingLoading(false);
+    }
+  };
+
+  // Fetch and update medical profile
+  const fetchMedicalRecord = async () => {
+    setProfileLoading(true);
+    try {
+      const res = await api.get('/medical-records');
+      setMedicalRecord(res.data?.data);
+      setProfileForm(res.data?.data || {});
+    } catch {
+      setMedicalRecord(null);
+      setProfileForm({});
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleViewProfile = () => {
+    setShowProfile(true);
+    fetchMedicalRecord();
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileLoading(true);
+    try {
+      if (medicalRecord?.id) {
+        await api.patch(`/medical-records/${medicalRecord.id}`, profileForm);
+      } else {
+        const res = await api.post('/medical-records', profileForm);
+        setMedicalRecord(res.data?.data);
+      }
+      alert('Lưu hồ sơ thành công!');
+    } catch (err) {
+      alert('Lưu thất bại: ' + (err.response?.data?.message || 'Lỗi'));
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchSpecialty.trim()) return;
+    setIsSearching(true);
+    setShowResults(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchSpecialty) params.append('search', searchSpecialty);
+      const res = await api.get(`/doctors?${params.toString()}`);
+      setSearchResults(res.data?.data || []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -86,19 +158,34 @@ export function PatientPortal({ onAdmin }) {
           <LinkButton href="#records">Hồ sơ sức khỏe</LinkButton>
         </nav>
         <div className="patient-header__actions">
-          <Button className="portal-switch portal-switch--patient" variant="secondary" onClick={onAdmin}>
-            <Icon name="grid" />
-            <span><strong>Staff admin</strong><small>Mở bảng điều khiển</small></span>
-            <Icon name="chevron" size={13} />
-          </Button>
-          <Button className="patient-avatar" variant="ghost">
-            <span>{initials}</span>
-            <div>
-              <strong>{user?.fullName || "Bệnh nhân"}</strong>
-              <small>ID #{user?.id ? user.id.slice(0, 8) : "—"}</small>
-            </div>
-            <Icon name="chevron" size={13} />
-          </Button>
+          {(user?.role === "ADMIN" || user?.role === "STAFF") && (
+            <Button className="portal-switch portal-switch--patient" variant="secondary" onClick={onAdmin}>
+              <Icon name="grid" />
+              <span><strong>Staff admin</strong><small>Mở bảng điều khiển</small></span>
+              <Icon name="chevron" size={13} />
+            </Button>
+          )}
+          <div className="patient-avatar-wrapper">
+            <Button className="patient-avatar" variant="ghost" onClick={() => setShowUserMenu(!showUserMenu)}>
+              <span>{initials}</span>
+              <div>
+                <strong>{user?.fullName || "Bệnh nhân"}</strong>
+                <small>ID #{user?.id ? user.id.slice(0, 8) : "—"}</small>
+              </div>
+              <Icon name="chevron" size={13} />
+            </Button>
+            {showUserMenu && (
+              <div className="patient-avatar-dropdown">
+                <button className="dropdown-item" onClick={() => { setShowProfile(true); fetchMedicalRecord(); setShowUserMenu(false); }}>
+                  <Icon name="user" size={14} /> Xem hồ sơ
+                </button>
+                <div className="dropdown-divider" />
+                <button className="dropdown-item danger" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('auth'); }}>
+                  <Icon name="log-out" size={14} /> Đăng xuất
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -117,11 +204,38 @@ export function PatientPortal({ onAdmin }) {
             <Heading level={2}>Tìm bác sĩ phù hợp</Heading>
             <p>Tìm kiếm bác sĩ và lịch khám có sẵn.</p>
           </div>
-          <TextField label="Chuyên khoa hoặc bác sĩ" icon={<Icon name="search" />} placeholder="VD: Tim mạch" value={searchSpecialty} onChange={e => setSearchSpecialty(e.target.value)} />
-          <TextField label="Địa điểm" icon={<Icon name="building" />} placeholder="Phòng khám Tâm An" value={searchLocation} onChange={e => setSearchLocation(e.target.value)} />
-          <TextField label="Ngày khám" icon={<Icon name="calendar" />} placeholder="VD: 04/10/2026" value={searchDate} onChange={e => setSearchDate(e.target.value)} />
-          <Button><Icon name="search" />Tìm kiếm</Button>
+          <TextField label="Chuyên khoa hoặc bác sĩ" icon={<Icon name="search" />} placeholder="VD: Tim mạch" value={searchSpecialty} onChange={e => setSearchSpecialty(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+          <TextField label="Địa điểm" icon={<Icon name="building" />} placeholder="Phòng khám Tâm An" value={searchLocation} onChange={e => setSearchLocation(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+          <TextField label="Ngày khám" icon={<Icon name="calendar" />} placeholder="VD: 04/10/2026" value={searchDate} onChange={e => setSearchDate(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+          <Button onClick={handleSearch} disabled={isSearching}><Icon name="search" />{isSearching ? 'Đang tìm...' : 'Tìm kiếm'}</Button>
         </section>
+
+        {/* Search Results */}
+        {showResults && (
+          <section className="search-results">
+            <div className="search-results-header">
+              <h3>Kết quả tìm kiếm ({searchResults.length})</h3>
+              <Button variant="ghost" onClick={() => setShowResults(false)}><Icon name="x" />Đóng</Button>
+            </div>
+            {searchResults.length === 0 ? (
+              <p className="no-results">Không tìm thấy bác sĩ nào phù hợp.</p>
+            ) : (
+              <div className="doctor-list">
+                {searchResults.map(doc => (
+                  <div key={doc.id} className="doctor-option" onClick={() => { setSelectedDoctor(doc); setSelectedSpecialty(doc.specialties?.[0] || null); handleBookAppointment(); }}>
+                    <span className="avatar teal">{doc.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}</span>
+                    <div>
+                      <strong>{doc.fullName}</strong>
+                      <small>{doc.title || 'Bác sĩ'}</small>
+                      <small>{doc.specialties?.map(s => s.name).join(', ') || ''}</small>
+                    </div>
+                    <Button variant="secondary" size="sm">Chọn</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="patient-grid">
           <section className="patient-card upcoming" id="appointments">
@@ -147,7 +261,7 @@ export function PatientPortal({ onAdmin }) {
           <section className="patient-card care-team">
             <div className="patient-section-title">
               <div><p>Đội ngũ bác sĩ</p><Heading level={2}>Chuyên khoa</Heading></div>
-              <LinkButton href="#all">Xem tất cả</LinkButton>
+              <LinkButton onClick={() => setShowAllDoctors(true)}>Xem tất cả</LinkButton>
             </div>
             {[
               ["TM", "BS.CKII Nguyễn Minh An", "Tim mạch", "noi-tong-quat"],
@@ -166,7 +280,7 @@ export function PatientPortal({ onAdmin }) {
           <section className="patient-card health-summary" id="records">
             <div className="patient-section-title">
               <div><p>Tóm tắt sức khỏe</p><Heading level={2}>Hồ sơ của bạn</Heading></div>
-              <LinkButton href="#records">Xem hồ sơ</LinkButton>
+              <LinkButton onClick={handleViewProfile}>Xem hồ sơ</LinkButton>
             </div>
             <div className="health-metrics">
               <div><span>Cân nặng</span><strong>—</strong><small>Chưa cập nhật</small></div>
@@ -179,16 +293,18 @@ export function PatientPortal({ onAdmin }) {
             <div className="patient-section-title">
               <div><p>Thao tác nhanh</p><Heading level={2}>Tiện ích</Heading></div>
             </div>
-            {[
-              ["calendar", "Đặt lịch khám", handleBookAppointment],
-              ["doctor", "Tìm bác sĩ"],
-              ["chart", "Xem kết quả xét nghiệm"],
-              ["help", "Liên hệ hỗ trợ"],
-            ].map(([icon, label, handler]) => (
-              <Button variant="ghost" key={label} onClick={handler}>
-                <Icon name={icon} /><span>{label}</span><Icon name="chevron" size={13} />
-              </Button>
-            ))}
+            <Button variant="ghost" onClick={handleBookAppointment}>
+              <Icon name="calendar" /><span>Đặt lịch khám</span><Icon name="chevron" size={13} />
+            </Button>
+            <Button variant="ghost" onClick={() => document.getElementById('find')?.scrollIntoView({behavior: 'smooth'})}>
+              <Icon name="doctor" /><span>Tìm bác sĩ</span><Icon name="chevron" size={13} />
+            </Button>
+            <Button variant="ghost" onClick={() => setShowProfile(true)}>
+              <Icon name="chart" /><span>Hồ sơ sức khỏe</span><Icon name="chevron" size={13} />
+            </Button>
+            <Button variant="ghost" onClick={() => window.open('tel:19001234')}>
+              <Icon name="help" /><span>Liên hệ hỗ trợ</span><Icon name="chevron" size={13} />
+            </Button>
           </aside>
         </div>
       </main>
@@ -233,10 +349,150 @@ export function PatientPortal({ onAdmin }) {
               )}
             </div>
             <div className="drawer-footer">
-              <Button variant="primary" onClick={handleBookingSubmit} disabled={loading}>
-                {loading ? 'Đang xử lý...' : 'Xác nhận đặt lịch'}
+              <Button variant="primary" onClick={handleBookingSubmit} disabled={bookingLoading}>
+                {bookingLoading ? 'Đang xử lý...' : 'Xác nhận đặt lịch'}
               </Button>
               <Button variant="secondary" onClick={() => setShowBooking(false)}>Hủy</Button>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* All Doctors Modal */}
+      {showAllDoctors && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setShowAllDoctors(false)} />
+          <aside className="drawer">
+            <div className="drawer-head">
+              <div>
+                <span className="micro-label">ĐỘI NGŨ</span>
+                <h2>Tất cả bác sĩ</h2>
+              </div>
+              <button onClick={() => setShowAllDoctors(false)}><Icon name="x" /></button>
+            </div>
+            <div className="drawer-section">
+              {loading ? (
+                <p>Đang tải...</p>
+              ) : (
+                <div className="doctor-list">
+                  {doctors.map(doc => (
+                    <div 
+                      key={doc.id}
+                      className={`doctor-option ${selectedDoctor?.id === doc.id ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedDoctor(doc);
+                        setSelectedSpecialty(doc.specialties?.[0] || null);
+                        setShowAllDoctors(false);
+                        setTimeout(() => handleBookAppointment(), 100);
+                      }}
+                    >
+                      <span className="avatar teal">{doc.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}</span>
+                      <div>
+                        <strong>{doc.fullName}</strong>
+                        <small>{doc.title || 'Bác sĩ'}</small>
+                        <small>{doc.specialties?.map(s => s.name).join(', ') || ''}</small>
+                      </div>
+                      <Button variant="secondary" size="sm">Chọn</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* Medical Profile Modal */}
+      {showProfile && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setShowProfile(false)} />
+          <aside className="drawer">
+            <div className="drawer-head">
+              <div>
+                <span className="micro-label">HỒ SƠ SỨC KHỎE</span>
+                <h2>Hồ sơ của bạn</h2>
+              </div>
+              <button onClick={() => setShowProfile(false)}><Icon name="x" /></button>
+            </div>
+            <div className="drawer-section">
+              {profileLoading ? (
+                <p>Đang tải...</p>
+              ) : (
+                <div className="profile-form">
+                  <div className="form-row">
+                    <TextField 
+                      label="Cân nặng (kg)" 
+                      type="number" 
+                      value={profileForm.weight || ''} 
+                      onChange={e => setProfileForm({...profileForm, weight: parseFloat(e.target.value) || undefined})}
+                      placeholder="VD: 65"
+                    />
+                    <TextField 
+                      label="Chiều cao (cm)" 
+                      type="number" 
+                      value={profileForm.height || ''} 
+                      onChange={e => setProfileForm({...profileForm, height: parseFloat(e.target.value) || undefined})}
+                      placeholder="VD: 170"
+                    />
+                  </div>
+                  <div className="form-row">
+                    <TextField 
+                      label="Huyết áp" 
+                      value={profileForm.bloodPressure || ''} 
+                      onChange={e => setProfileForm({...profileForm, bloodPressure: e.target.value})}
+                      placeholder="VD: 120/80"
+                    />
+                    <TextField 
+                      label="Nhịp tim (bpm)" 
+                      type="number" 
+                      value={profileForm.heartRate || ''} 
+                      onChange={e => setProfileForm({...profileForm, heartRate: parseInt(e.target.value) || undefined})}
+                      placeholder="VD: 75"
+                    />
+                  </div>
+                  <TextField 
+                    label="Nhiệt độ (°C)" 
+                    type="number" 
+                    step="0.1"
+                    value={profileForm.temperature || ''} 
+                    onChange={e => setProfileForm({...profileForm, temperature: parseFloat(e.target.value) || undefined})}
+                    placeholder="VD: 36.5"
+                  />
+                  <div className="form-group">
+                    <label>Dị ứng</label>
+                    <textarea 
+                      value={profileForm.allergies || ''} 
+                      onChange={e => setProfileForm({...profileForm, allergies: e.target.value})}
+                      placeholder="VD: Hải sản, phấn hoa..."
+                      rows="2"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Tiền sử bệnh</label>
+                    <textarea 
+                      value={profileForm.medicalHistory || ''} 
+                      onChange={e => setProfileForm({...profileForm, medicalHistory: e.target.value})}
+                      placeholder="Các bệnh đã mắc phải..."
+                      rows="3"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Ghi chú</label>
+                    <textarea 
+                      value={profileForm.notes || ''} 
+                      onChange={e => setProfileForm({...profileForm, notes: e.target.value})}
+                      placeholder="Các thông tin khác..."
+                      rows="2"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="drawer-footer">
+              <Button variant="primary" onClick={handleSaveProfile} disabled={profileLoading}>
+                {profileLoading ? 'Đang lưu...' : 'Lưu hồ sơ'}
+              </Button>
+              <Button variant="secondary" onClick={() => setShowProfile(false)}>Đóng</Button>
             </div>
           </aside>
         </>

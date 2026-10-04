@@ -785,6 +785,13 @@ input[type=checkbox]{accent-color:var(--teal)}.quick-actions{display:flex;gap:5p
 .patient-avatar>div{display:flex;flex-direction:column;align-items:flex-start;gap:.08rem}
 .patient-avatar strong{font-size:.62rem}
 .patient-avatar small{color:var(--muted);font-size:.5rem}
+.patient-avatar-wrapper{position:relative}
+.patient-avatar-dropdown{position:absolute;top:100%;right:0;margin-top:.5rem;min-width:14rem;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:100;overflow:hidden}
+.dropdown-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.75rem 1rem;border:none;background:none;text-align:left;font-size:.7rem;color:var(--text);cursor:pointer;transition:background .15s}
+.dropdown-item:hover{background:var(--gray-50)}
+.dropdown-item.danger{color:#dc2626}
+.dropdown-item.danger:hover{background:#fef2f2}
+.dropdown-divider{height:1px;background:var(--border);margin:.25rem 0}
 .patient-main{width:min(100% - 4rem,75rem);margin:auto;padding:2rem 0 4rem}
 .patient-welcome{margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:flex-end}
 .patient-welcome p{margin:0 0 .25rem;color:var(--teal);font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
@@ -814,6 +821,7 @@ input[type=checkbox]{accent-color:var(--teal)}.quick-actions{display:flex;gap:5p
 .appointment-details strong{color:#334155;font-size:.62rem}
 .patient-card__actions{padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.5rem}
 .care-team{grid-column:2;grid-row:1/span 2}
+.portal-quick-actions{grid-column:2;grid-row:3}
 .care-row{min-height:4.6rem;margin:0 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.55rem}
 .care-row:last-child{border-bottom:0}
 .care-row>div{min-width:0;flex:1;display:flex;flex-direction:column;gap:.15rem}
@@ -855,6 +863,22 @@ input[type=checkbox]{accent-color:var(--teal)}.quick-actions{display:flex;gap:5p
 .doctor-option div {display: flex; flex-direction: column; gap: 2px;}
 .doctor-option strong {font-size: 13px; color: #1e293b;}
 .doctor-option small {font-size: 11px; color: var(--muted);}
+.doctor-option .btn {margin-left: auto;}
+
+/* Search Results */
+.search-results {margin-top: 1rem; background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;}
+.search-results-header {display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border);}
+.search-results-header h3 {margin: 0; font-size: 14px;}
+.search-results .doctor-list {padding: 1rem; max-height: 500px;}
+.no-results {text-align: center; padding: 2rem; color: var(--muted);}
+
+/* Medical Profile Form */
+.profile-form {display: flex; flex-direction: column; gap: 16px;}
+.profile-form .form-row {display: grid; grid-template-columns: 1fr 1fr; gap: 12px;}
+.profile-form .form-group {display: flex; flex-direction: column; gap: 6px;}
+.profile-form .form-group label {font-size: 13px; font-weight: 500; color: var(--text);}
+.profile-form textarea {width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical;}
+.profile-form textarea:focus {outline: none; border-color: var(--teal);}
 
 @media(max-width:64rem){
   .patient-header{padding:0 1.5rem}

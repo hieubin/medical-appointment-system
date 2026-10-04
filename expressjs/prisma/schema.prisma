@@ -16,6 +16,7 @@ model User {
   role         String        @default("PATIENT")
   status       String        @default("ACTIVE")
   sessions     AuthSession[]
+  medicalRecords MedicalRecord[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -162,4 +163,22 @@ model DoctorSpecialty {
 
   @@id([doctorId, specialtyId])
   @@index([specialtyId])
+}
+
+model MedicalRecord {
+  id             String   @id @default(uuid())
+  userId         String
+  weight         Float?
+  height         Float?
+  bloodPressure  String?
+  heartRate      Int?
+  temperature    Float?
+  allergies      String?
+  medicalHistory String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -185,31 +185,43 @@ export function TextField({
   );
 }
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, label }) {
   const map = {
-    Confirmed: { bg: "#dcfce7", color: "#15803d" },
-    Pending: { bg: "#fef3c7", color: "#b45309" },
-    Completed: { bg: "#e0e7ff", color: "#4338ca" },
-    Cancelled: { bg: "#fee2e2", color: "#b91c1c" },
-    "No-Show": { bg: "#f1f5f9", color: "#475569" },
+    CONFIRMED: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Đã xác nhận" },
+    Confirmed: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Đã xác nhận" },
+    PENDING: { bg: "#fffbeb", color: "#b45309", border: "#fde68a", label: "Chờ duyệt" },
+    Pending: { bg: "#fffbeb", color: "#b45309", border: "#fde68a", label: "Chờ duyệt" },
+    COMPLETED: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe", label: "Hoàn thành" },
+    Completed: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe", label: "Hoàn thành" },
+    CANCELLED: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca", label: "Đã hủy" },
+    Cancelled: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca", label: "Đã hủy" },
+    NO_SHOW: { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Vắng mặt" },
+    "No-Show": { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Vắng mặt" },
+    ACTIVE: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Hoạt động" },
+    Active: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Hoạt động" },
+    INACTIVE: { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Tạm ngưng" },
+    Inactive: { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Tạm ngưng" },
   };
-  const s = map[status] || map.Pending;
+  const item = map[status] || { bg: "#f8fafc", color: "#475569", border: "#e2e8f0", label: status };
+  const displayText = label || item.label || status;
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "3px 8px",
+        padding: "4px 10px",
         borderRadius: 99,
-        fontSize: 9,
-        fontWeight: 700,
-        background: s.bg,
-        color: s.color,
+        fontSize: 12,
+        fontWeight: 600,
+        background: item.bg,
+        color: item.color,
+        border: `1px solid ${item.border}`,
+        whiteSpace: "nowrap",
       }}
     >
-      <i style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor", display: "inline-block" }}></i>
-      {status}
+      <i style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }}></i>
+      {displayText}
     </span>
   );
 }

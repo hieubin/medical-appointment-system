@@ -132,23 +132,33 @@ function Overview() {
           <table>
             <thead>
               <tr>
-                <th>MÃ</th><th>BỆNH NHÂN</th><th>BÁC SĨ</th><th>NGÀY</th><th>TRẠNG THÁI</th>
+                <th style={{ minWidth: 140 }}>MÃ PHIẾU</th>
+                <th style={{ minWidth: 200 }}>BỆNH NHÂN</th>
+                <th style={{ minWidth: 240 }}>BÁC SĨ / DỊCH VỤ</th>
+                <th style={{ minWidth: 160 }}>NGÀY &amp; GIỜ</th>
+                <th style={{ minWidth: 140 }}>TRẠNG THÁI</th>
               </tr>
             </thead>
             <tbody>
               {recent.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, padding: 24 }}>Không có dữ liệu</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: 28 }}>Không có dữ liệu</td></tr>
               )}
               {recent.map((a) => (
                 <tr key={a.id}>
                   <td><strong className="code">{a.bookingCode}</strong></td>
-                  <td><strong>{a.patientName}</strong><small>{a.patientPhone}</small></td>
-                  <td><strong>{a.doctor?.fullName || "—"}</strong><small>{a.service?.name || ""}</small></td>
                   <td>
-                    <strong>{a.appointmentDate ? new Date(a.appointmentDate).toLocaleDateString("vi-VN") : "—"}</strong>
-                    <small>{a.startTime}</small>
+                    <strong style={{ fontSize: 14, color: "#0f172a" }}>{a.patientName}</strong>
+                    <small style={{ fontSize: 12, color: "#64748b" }}>{a.patientPhone}</small>
                   </td>
-                  <td><StatusBadge status={a.status?.replace("_", "-")} /></td>
+                  <td>
+                    <strong style={{ fontSize: 14, color: "#0f172a" }}>{a.doctor?.fullName || "—"}</strong>
+                    <small style={{ fontSize: 12, color: "#64748b" }}>{a.service?.name || ""}</small>
+                  </td>
+                  <td>
+                    <strong style={{ fontSize: 13, color: "#0f172a" }}>{a.appointmentDate ? new Date(a.appointmentDate).toLocaleDateString("vi-VN") : "—"}</strong>
+                    <small style={{ fontSize: 12, color: "#64748b" }}>{a.startTime}</small>
+                  </td>
+                  <td><StatusBadge status={a.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -242,24 +252,35 @@ function Appointments({ setTab }) {
           <table>
             <thead>
               <tr>
-                <th>MÃ</th><th>BỆNH NHÂN</th><th>BÁC SĨ / DỊCH VỤ</th><th>NGÀY &amp; GIỜ</th><th>TRẠNG THÁI</th><th>THAO TÁC</th>
+                <th style={{ minWidth: 140 }}>MÃ PHIẾU</th>
+                <th style={{ minWidth: 200 }}>BỆNH NHÂN</th>
+                <th style={{ minWidth: 240 }}>BÁC SĨ / DỊCH VỤ</th>
+                <th style={{ minWidth: 160 }}>NGÀY &amp; GIỜ</th>
+                <th style={{ minWidth: 140 }}>TRẠNG THÁI</th>
+                <th style={{ minWidth: 220, textAlign: "right" }}>THAO TÁC</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={6} style={{ textAlign: "center", padding: 24 }}>Đang tải…</td></tr>}
-              {!loading && items.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>Không có dữ liệu</td></tr>}
+              {loading && <tr><td colSpan={6} style={{ textAlign: "center", padding: 28, fontSize: 13, color: "#64748b" }}>Đang tải…</td></tr>}
+              {!loading && items.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: 28, fontSize: 13 }}>Không có dữ liệu</td></tr>}
               {!loading && items.map(a => (
                 <tr key={a.id}>
                   <td><strong className="code">{a.bookingCode}</strong></td>
-                  <td><strong>{a.patientName}</strong><small>{a.patientPhone}</small></td>
-                  <td><strong>{a.doctor?.fullName || "—"}</strong><small>{a.service?.name || ""}</small></td>
                   <td>
-                    <strong>{a.appointmentDate ? new Date(a.appointmentDate).toLocaleDateString("vi-VN") : "—"}</strong>
-                    <small>{a.startTime} – {a.endTime}</small>
+                    <strong style={{ fontSize: 14, color: "#0f172a" }}>{a.patientName}</strong>
+                    <small style={{ fontSize: 12, color: "#64748b" }}>{a.patientPhone}</small>
                   </td>
-                  <td><StatusBadge status={a.status?.replace("_", "-")} /></td>
-                  <td onClick={e => e.stopPropagation()}>
-                    <div className="quick-actions">
+                  <td>
+                    <strong style={{ fontSize: 14, color: "#0f172a" }}>{a.doctor?.fullName || "—"}</strong>
+                    <small style={{ fontSize: 12, color: "#64748b" }}>{a.service?.name || ""}</small>
+                  </td>
+                  <td>
+                    <strong style={{ fontSize: 13, color: "#0f172a" }}>{a.appointmentDate ? new Date(a.appointmentDate).toLocaleDateString("vi-VN") : "—"}</strong>
+                    <small style={{ fontSize: 12, color: "#64748b" }}>{a.startTime} – {a.endTime}</small>
+                  </td>
+                  <td><StatusBadge status={a.status} /></td>
+                  <td onClick={e => e.stopPropagation()} style={{ textAlign: "right" }}>
+                    <div className="quick-actions" style={{ justifyContent: "flex-end" }}>
                       {a.status === "PENDING" && (
                         <button className="quick confirm" onClick={() => handleStatusChange(a.id, "CONFIRMED")}>Xác nhận</button>
                       )}
@@ -370,35 +391,43 @@ function Doctors() {
         <table>
           <thead>
             <tr>
-              <th>BÁC SĨ</th><th>CHUYÊN KHOA</th><th>LIÊN HỆ</th><th>TRẠNG THÁI</th><th>THAO TÁC</th>
+              <th style={{ minWidth: 260 }}>BÁC SĨ</th>
+              <th style={{ minWidth: 180 }}>CHUYÊN KHOA</th>
+              <th style={{ minWidth: 180 }}>LIÊN HỆ</th>
+              <th style={{ minWidth: 140 }}>TRẠNG THÁI</th>
+              <th style={{ minWidth: 120, textAlign: "right" }}>THAO TÁC</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={5} style={{ textAlign: "center", padding: 24 }}>Đang tải…</td></tr>}
-            {!loading && doctors.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>Không có dữ liệu</td></tr>}
+            {loading && <tr><td colSpan={5} style={{ textAlign: "center", padding: 28, fontSize: 13, color: "#64748b" }}>Đang tải…</td></tr>}
+            {!loading && doctors.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", padding: 28, fontSize: 13 }}>Không có dữ liệu</td></tr>}
             {!loading && doctors.map(d => (
               <tr key={d.id}>
                 <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span className="avatar teal">{d.fullName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}</span>
-                    <div>
-                      <strong>{d.fullName}</strong>
-                      <small>{d.title || "Bác sĩ"}</small>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <span className="avatar teal" style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, fontWeight: 700, fontSize: 13 }}>
+                      {d.fullName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </span>
+                    <div style={{ minWidth: 150 }}>
+                      <strong style={{ fontSize: 14, color: "#0f172a", whiteSpace: "nowrap" }}>{d.fullName}</strong>
+                      <small style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{d.title || "Bác sĩ"}</small>
                     </div>
                   </div>
                 </td>
                 <td>
-                  {d.specialties?.map(s => s.name).join(", ") || "—"}
+                  <span style={{ fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                    {d.specialties?.map(s => s.name).join(", ") || "—"}
+                  </span>
                 </td>
                 <td>
-                  <strong>{d.phone || "—"}</strong>
-                  <small>{d.email}</small>
+                  <strong style={{ fontSize: 13 }}>{d.phone || "—"}</strong>
+                  <small style={{ fontSize: 12, color: "#64748b" }}>{d.email || "—"}</small>
                 </td>
                 <td>
-                  <StatusBadge status={d.status === "ACTIVE" ? "Confirmed" : "Pending"} />
+                  <StatusBadge status={d.status || "ACTIVE"} />
                 </td>
-                <td>
-                  <div className="quick-actions">
+                <td style={{ textAlign: "right" }}>
+                  <div className="quick-actions" style={{ justifyContent: "flex-end" }}>
                     <button className="quick">Sửa</button>
                     <button className="quick cancel">Xóa</button>
                   </div>
@@ -440,25 +469,35 @@ function Services() {
         <table>
           <thead>
             <tr>
-              <th>DỊCH VỤ</th><th>CHUYÊN KHOA</th><th>GIÁ</th><th>TRẠNG THÁI</th><th>THAO TÁC</th>
+              <th style={{ minWidth: 260 }}>DỊCH VỤ</th>
+              <th style={{ minWidth: 180 }}>CHUYÊN KHOA</th>
+              <th style={{ minWidth: 150 }}>GIÁ DỊCH VỤ</th>
+              <th style={{ minWidth: 140 }}>TRẠNG THÁI</th>
+              <th style={{ minWidth: 120, textAlign: "right" }}>THAO TÁC</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={5} style={{ textAlign: "center", padding: 24 }}>Đang tải…</td></tr>}
-            {!loading && services.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>Không có dữ liệu</td></tr>}
+            {loading && <tr><td colSpan={5} style={{ textAlign: "center", padding: 28, fontSize: 13, color: "#64748b" }}>Đang tải…</td></tr>}
+            {!loading && services.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", padding: 28, fontSize: 13 }}>Không có dữ liệu</td></tr>}
             {!loading && services.map(s => (
               <tr key={s.id}>
                 <td>
-                  <strong>{s.name}</strong>
-                  <small>{s.description?.slice(0, 60) || ""}</small>
-                </td>
-                <td>{s.specialty?.name || "—"}</td>
-                <td><strong>{parseFloat(s.price).toLocaleString("vi-VN")}đ</strong></td>
-                <td>
-                  <StatusBadge status={s.status === "ACTIVE" ? "Confirmed" : "Pending"} />
+                  <strong style={{ fontSize: 14, color: "#0f172a" }}>{s.name}</strong>
+                  <small style={{ fontSize: 12, color: "#64748b", display: "block", marginTop: 2 }}>{s.description || ""}</small>
                 </td>
                 <td>
-                  <div className="quick-actions">
+                  <span style={{ fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                    {s.specialty?.name || "—"}
+                  </span>
+                </td>
+                <td>
+                  <strong style={{ fontSize: 14, color: "#0f766e" }}>{parseFloat(s.price).toLocaleString("vi-VN")}đ</strong>
+                </td>
+                <td>
+                  <StatusBadge status={s.status || "ACTIVE"} />
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  <div className="quick-actions" style={{ justifyContent: "flex-end" }}>
                     <button className="quick">Sửa</button>
                     <button className="quick cancel">Xóa</button>
                   </div>

@@ -1315,7 +1315,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
             {bookingStep === 1 && (
               <div className="drawer-section">
                 <h3>1. Chọn cơ sở phòng khám</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+                <div className="booking-location-grid">
                   {clinicLocations.map((loc) => {
                     const isSelected = bookingLocation === loc.id;
                     return (

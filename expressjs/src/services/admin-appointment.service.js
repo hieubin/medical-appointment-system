@@ -18,6 +18,13 @@ function buildWhere(query) {
   }
   if (query.doctorId) where.doctorId = query.doctorId;
   if (query.status) where.status = query.status;
+  if (query.search) {
+    where.OR = [
+      { bookingCode: { contains: query.search } },
+      { patientName: { contains: query.search } },
+      { patientPhone: { contains: query.search } },
+    ];
+  }
   return where;
 }
 

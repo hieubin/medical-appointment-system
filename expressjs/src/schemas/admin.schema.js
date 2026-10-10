@@ -55,6 +55,7 @@ export const adminAppointmentQuerySchema = z.object({
   to: dateSchema.optional(),
   doctorId: idSchema.optional(),
   status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"]).optional(),
+  search: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });

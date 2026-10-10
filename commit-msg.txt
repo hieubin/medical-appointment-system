@@ -1,3 +1,0 @@
-Thay tai lieu Markdown bang file Word cho tester.
-
-Bo thu muc scripts va cac file md. Script Python sinh bo kiem thu chuc nang dat lich, duyet lich va bao cao.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Logo,
   Heading,
@@ -39,8 +39,8 @@ export function getTimeGreeting(date = new Date()) {
 
 // ─── PATIENT PORTAL ────────────────────────────────────────────────────────────
 
-export function PatientPortal({ onAdmin, onLogout, currentUser }) {
-  const [user, setUser] = useState(currentUser || null);
+export function PatientPortal({ onAdmin, onLogout }) {
+  const [user, setUser] = useState(null);
   const [searchSpecialty, setSearchSpecialty] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
   const [searchDate, setSearchDate] = useState("");
@@ -114,12 +114,17 @@ export function PatientPortal({ onAdmin, onLogout, currentUser }) {
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) return;
-    setUser(currentUser);
-    setPatientName(currentUser.fullName || "");
-    setPatientPhone(currentUser.phone || "");
-    setPatientEmail(currentUser.email || "");
-  }, [currentUser]);
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        setUser(u);
+        setPatientName(u.fullName || "");
+        setPatientPhone(u.phone || "");
+        setPatientEmail(u.email || "");
+      }
+    } catch {}
+  }, []);
 
   const fetchMyAppointments = () => {
     api
@@ -144,10 +149,11 @@ export function PatientPortal({ onAdmin, onLogout, currentUser }) {
   };
 
   useEffect(() => {
-    if (!currentUser) return;
-    fetchMyAppointments();
-    fetchMedicalRecord();
-  }, [currentUser]);
+    if (localStorage.getItem("token")) {
+      fetchMyAppointments();
+      fetchMedicalRecord();
+    }
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -603,7 +609,14 @@ export function PatientPortal({ onAdmin, onLogout, currentUser }) {
                     <button
                       type="button"
                       className="dropdown-logout-btn"
-                      onClick={() => onLogout?.()}
+                      onClick={() => {
+                        if (onLogout) onLogout();
+                        else {
+                          localStorage.removeItem("token");
+                          localStorage.removeItem("user");
+                          window.location.reload();
+                        }
+                      }}
                     >
                       <Icon name="logout" size={15} />
                       <span>Đăng xuất tài khoản</span>
@@ -2201,7 +2214,7 @@ export function PatientPortal({ onAdmin, onLogout, currentUser }) {
 }
 
 // ─── AUTH SCREEN ────────────────────────────────────────────────────────────────
-function AuthScreen({ mode, navigate, onAuthenticated }) {
+function AuthScreen({ mode, navigate }) {
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -2230,15 +2243,7 @@ function AuthScreen({ mode, navigate, onAuthenticated }) {
 
     if (mode === "forgot") {
       if (!email.trim()) { setError("Vui lòng nhập địa chỉ email."); return; }
-      setLoading(true);
-      try {
-        await api.post("/auth/forgot-password", { email: email.trim() });
-        setSent(true);
-      } catch (err) {
-        setError(err.response?.data?.message || "Không gửi được yêu cầu đặt lại mật khẩu.");
-      } finally {
-        setLoading(false);
-      }
+      setSent(true);
       return;
     }
 
@@ -2252,8 +2257,12 @@ function AuthScreen({ mode, navigate, onAuthenticated }) {
           phone: phone.trim(),
         });
         const data = response.data?.data;
-        if (data?.user) onAuthenticated?.(data.user);
-        else navigate("patient");
+        if (data?.accessToken) {
+          localStorage.setItem("token", data.accessToken);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          if (keepSignedIn) localStorage.setItem("keepMeSignedIn", "true");
+        }
+        navigate("patient");
       } catch (err) {
         setError(err.response?.data?.message || "Đăng ký không thành công.");
       } finally {
@@ -2265,14 +2274,16 @@ function AuthScreen({ mode, navigate, onAuthenticated }) {
     if (mode === "login") {
       setLoading(true);
       try {
-        const response = await api.post("/auth/login", {
-          email: email.trim(),
-          password,
-          keepSignedIn,
-        });
+        const response = await api.post("/auth/login", { email: email.trim(), password });
         const data = response.data?.data;
-        if (data?.user) onAuthenticated?.(data.user);
-        else navigate("patient");
+        if (data?.accessToken) {
+          localStorage.setItem("token", data.accessToken);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          if (keepSignedIn) localStorage.setItem("keepMeSignedIn", "true");
+          navigate(data.user?.role === "ADMIN" ? "dashboard" : "patient");
+        } else {
+          navigate("dashboard");
+        }
       } catch (err) {
         if (!err.response) {
           setError("Không thể kết nối đến máy chủ backend (Port 4000). Vui lòng đảm bảo server đang chạy.");
@@ -2424,9 +2435,16 @@ function getPathForScreen(scr) {
   }
 }
 
-function screenForSession(user) {
+function resolveInitialScreen() {
   const path = (window.location.pathname || "/").toLowerCase();
-  if (user) {
+  const token = localStorage.getItem("token");
+  let user = null;
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) user = JSON.parse(raw);
+  } catch {}
+
+  if (token && user) {
     const isAdmin = user.role === "ADMIN";
     if (path === "/admin") {
       if (!isAdmin) {
@@ -2436,10 +2454,15 @@ function screenForSession(user) {
       return "dashboard";
     }
     if (path === "/patient") return "patient";
-    const dest = isAdmin ? "/admin" : "/patient";
-    if (path !== dest) window.history.replaceState(null, "", dest);
-    return isAdmin ? "dashboard" : "patient";
+    if (isAdmin) {
+      window.history.replaceState(null, "", "/admin");
+      return "dashboard";
+    }
+    window.history.replaceState(null, "", "/patient");
+    return "patient";
   }
+
+  // Not authenticated:
   if (path === "/register") return "register";
   if (path === "/forgot") return "forgot";
   if (path === "/admin" || path === "/patient") {
@@ -2449,10 +2472,7 @@ function screenForSession(user) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState(null);
-  const [sessionUser, setSessionUser] = useState(null);
-  const sessionRef = useRef(null);
-  sessionRef.current = sessionUser;
+  const [screen, setScreen] = useState(resolveInitialScreen);
 
   const navigateTo = (nextScreen) => {
     const targetPath = getPathForScreen(nextScreen);
@@ -2463,30 +2483,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("keepMeSignedIn");
-    let cancelled = false;
-    api.get("/auth/me")
-      .then((response) => {
-        if (cancelled) return;
-        const user = response.data?.data || null;
-        setSessionUser(user);
-        setScreen(screenForSession(user));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setSessionUser(null);
-        setScreen(screenForSession(null));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     const onPopState = () => {
-      setScreen(screenForSession(sessionRef.current));
+      setScreen(resolveInitialScreen());
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -2506,28 +2504,12 @@ export default function App() {
     }
   }, [screen]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch {
-      // Cookie vẫn được xóa ở phía trình duyệt nếu server đã phản hồi xóa.
-    }
-    setSessionUser(null);
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("keepMeSignedIn");
     navigateTo("login");
   };
-
-  const handleAuthenticated = (user) => {
-    setSessionUser(user);
-    navigateTo(user?.role === "ADMIN" ? "dashboard" : "patient");
-  };
-
-  if (!screen) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#475569", fontFamily: "inherit" }}>
-        Đang kiểm tra phiên đăng nhập…
-      </main>
-    );
-  }
 
   if (screen === "dashboard") {
     return (
@@ -2539,11 +2521,10 @@ export default function App() {
   if (screen === "patient") {
     return (
       <PatientPortal
-        currentUser={sessionUser}
         onAdmin={() => navigateTo("dashboard")}
         onLogout={handleLogout}
       />
     );
   }
-  return <AuthScreen mode={screen} navigate={navigateTo} onAuthenticated={handleAuthenticated} />;
+  return <AuthScreen mode={screen} navigate={navigateTo} />;
 }

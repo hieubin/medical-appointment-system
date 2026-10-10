@@ -3,7 +3,6 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../models/index.js";
 
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
-const DUMMY_PASSWORD_HASH = bcrypt.hashSync("not-a-real-user-password", 10);
 
 function publicUser(user) {
   return {
@@ -17,7 +16,7 @@ function publicUser(user) {
 
 export async function login({ email, password }) {
   const user = await prisma.user.findUnique({ where: { email } });
-  const passwordMatches = await bcrypt.compare(password, user?.passwordHash || DUMMY_PASSWORD_HASH);
+  const passwordMatches = user && await bcrypt.compare(password, user.passwordHash);
 
   if (!user || !passwordMatches || user.status !== "ACTIVE") {
     throw Object.assign(new Error("Email hoặc mật khẩu không chính xác."), { status: 401 });
@@ -87,8 +86,4 @@ export async function logout(sessionId) {
 
 export function getCurrentUser(user) {
   return publicUser(user);
-}
-
-export function forgotPassword() {
-  return { message: "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu sẽ được gửi." };
 }

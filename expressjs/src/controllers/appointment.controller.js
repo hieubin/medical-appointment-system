@@ -15,7 +15,7 @@ export async function getMy(req, res) {
 export async function create(req, res) {
   const input = {
     ...req.validated.body,
-    patientId: req.auth?.user?.id || req.user?.id || null,
+    patientId: req.auth?.user?.id || req.user?.id || req.validated.body.patientId,
   };
   return success(res, await createAppointment(input), 201);
 }
@@ -27,10 +27,8 @@ export async function lookup(req, res) {
 }
 
 export async function cancel(req, res) {
-  const user = req.auth?.user || req.user;
-  if (!user) return fail(res, "Cần đăng nhập để tiếp tục.", 401);
   return success(
     res,
-    await cancelAppointment(req.validated.params.id, req.validated.body, user),
+    await cancelAppointment(req.validated.params.id, req.validated.body),
   );
 }

@@ -1,12 +1,15 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../models/index.js";
+import { AUTH_COOKIE } from "../security/cookies.js";
 import { fail } from "../views/json.view.js";
 
+function readSessionToken(req) {
+  const token = req.cookies?.[AUTH_COOKIE];
+  return typeof token === "string" && token ? token : null;
+}
+
 export async function authenticate(req, res, next) {
-  const authorization = req.get("authorization");
-  const token = authorization?.startsWith("Bearer ")
-    ? authorization.slice("Bearer ".length)
-    : null;
+  const token = readSessionToken(req);
 
   if (!token) return fail(res, "Cần đăng nhập để tiếp tục.", 401);
 
@@ -58,10 +61,7 @@ export function requireRoles(...roles) {
 }
 
 export async function optionalAuth(req, _res, next) {
-  const authorization = req.get("authorization");
-  const token = authorization?.startsWith("Bearer ")
-    ? authorization.slice("Bearer ".length)
-    : null;
+  const token = readSessionToken(req);
 
   if (!token) return next();
 

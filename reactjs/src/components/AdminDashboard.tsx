@@ -1835,7 +1835,6 @@ function Locations({ locations = [], onLocationsChanged }) {
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
 export default function AdminDashboard({ onLogout }) {
   const [tab, setTab] = useState("overview");
-  const [user, setUser] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [locations, setLocations] = useState(CLINIC_LOCATIONS);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -1863,13 +1862,6 @@ export default function AdminDashboard({ onLogout }) {
   useEffect(() => {
     fetchLocations();
   }, [fetchLocations]);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      if (stored) setUser(JSON.parse(stored));
-    } catch {}
-  }, []);
 
   return (
     <div className="admin-shell">

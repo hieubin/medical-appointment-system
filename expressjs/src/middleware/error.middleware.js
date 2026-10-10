@@ -25,8 +25,9 @@ export function errorHandler(err, _req, res, _next) {
   }
 
   console.error(err);
-  res.status(err.status || 500).json({
+  const status = Number(err.status) || 500;
+  res.status(status).json({
     success: false,
-    message: err.message || "Lỗi máy chủ.",
+    message: status >= 500 ? "Lỗi máy chủ." : (err.message || "Yêu cầu không hợp lệ."),
   });
 }

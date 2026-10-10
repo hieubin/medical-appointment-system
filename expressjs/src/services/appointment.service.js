@@ -158,11 +158,16 @@ export function lookupAppointment(input) {
   });
 }
 
-export async function cancelAppointment(id, input) {
-  const appointment = await prisma.appointment.findFirst({
-    where: { id, patientPhone: input.patientPhone },
-  });
-  if (!appointment) throw error(404, "Không tìm thấy lịch hẹn.");
+export async function cancelAppointment(id, input, user) {
+  const appointment = await prisma.appointment.findUnique({ where: { id } });
+  const owns = appointment && (
+    appointment.patientId === user?.id
+    || (user?.phone && appointment.patientPhone === user.phone)
+    || (user?.email && appointment.patientEmail && appointment.patientEmail.toLowerCase() === user.email.toLowerCase())
+  );
+  if (!appointment || !owns || appointment.patientPhone !== input.patientPhone) {
+    throw error(404, "Không tìm thấy lịch hẹn.");
+  }
   if (!ACTIVE_STATUSES.includes(appointment.status)) {
     throw error(422, "Lịch hẹn không còn được phép hủy.");
   }

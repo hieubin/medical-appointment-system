@@ -8,11 +8,13 @@ import { medicalRecordRouter } from "./medicalRecord.routes.js";
 import { authenticate, requireRoles } from "../middleware/auth.middleware.js";
 import { serviceRouter } from "./service.routes.js";
 import { specialtyRouter } from "./specialty.routes.js";
+import { locationRouter } from "./location.routes.js";
 
 export const router = Router();
 
 router.use("/health", healthRouter);
 router.use("/auth", authRouter);
+router.use("/locations", locationRouter);
 router.use("/specialties", specialtyRouter);
 router.use("/doctors", doctorRouter);
 router.use("/services", serviceRouter);

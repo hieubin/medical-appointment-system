@@ -4,6 +4,7 @@ import { fail, success } from "../views/json.view.js";
 
 function handleNotFound(error, res) {
   if (error.code === "P2025") return fail(res, "Không tìm thấy dữ liệu.", 404);
+  if (error.code === "P2002") return fail(res, "Dữ liệu bị trùng lặp (ví dụ: số chứng chỉ hành nghề hoặc email đã tồn tại).", 409);
   throw error;
 }
 

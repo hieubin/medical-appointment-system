@@ -1,60 +1,66 @@
-import { success } from "../views/json.view.js";
-
-export const CLINIC_LOCATIONS = [
-  {
-    id: "loc-q5",
-    name: "Phòng khám Tâm An - Quận 5",
-    shortName: "Cơ sở Quận 5 (Trụ sở chính)",
-    address: "123 Nguyễn Văn Cừ, Phường 4, Quận 5",
-    city: "TP. Hồ Chí Minh",
-    fullAddress: "123 Nguyễn Văn Cừ, Phường 4, Quận 5, TP. Hồ Chí Minh",
-    hotline: "1900 1234 (Nhánh 1)",
-    phone: "028 3835 1234",
-    rooms: ["Phòng khám 101", "Phòng khám 102", "Phòng khám 103"],
-  },
-  {
-    id: "loc-bt",
-    name: "Phòng khám Tâm An - Bình Thạnh",
-    shortName: "Cơ sở Bình Thạnh",
-    address: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh",
-    city: "TP. Hồ Chí Minh",
-    fullAddress: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh",
-    hotline: "1900 1234 (Nhánh 2)",
-    phone: "028 3512 8888",
-    rooms: ["Phòng khám 201", "Phòng khám 202"],
-  },
-  {
-    id: "loc-td",
-    name: "Phòng khám Tâm An - TP. Thủ Đức",
-    shortName: "Cơ sở Thủ Đức",
-    address: "88 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức",
-    city: "TP. Hồ Chí Minh",
-    fullAddress: "88 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh",
-    hotline: "1900 1234 (Nhánh 3)",
-    phone: "028 3722 5555",
-    rooms: ["Phòng khám 105", "Phòng khám 106"],
-  },
-  {
-    id: "loc-cg",
-    name: "Phòng khám Tâm An - Cầu Giấy (Hà Nội)",
-    shortName: "Cơ sở Cầu Giấy",
-    address: "78 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy",
-    city: "Hà Nội",
-    fullAddress: "78 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
-    hotline: "1900 1234 (Nhánh 4)",
-    phone: "024 3795 6666",
-    rooms: ["Phòng khám HN-01", "Phòng khám HN-02"],
-  },
-];
+import * as service from "../services/location.service.js";
+import { success, fail } from "../views/json.view.js";
 
 export async function listLocations(_req, res) {
-  return success(res, CLINIC_LOCATIONS);
+  try {
+    const locations = await service.listPublicLocations();
+    return success(res, locations);
+  } catch (error) {
+    console.error("Error listing locations:", error);
+    return fail(res, "Không thể tải danh sách cơ sở.", 500);
+  }
 }
 
 export async function getLocation(req, res) {
-  const loc = CLINIC_LOCATIONS.find((l) => l.id === req.params.id);
-  if (!loc) {
-    return res.status(404).json({ success: false, message: "Không tìm thấy cơ sở phòng khám." });
+  try {
+    const loc = await service.getLocationById(req.params.id);
+    if (!loc) {
+      return fail(res, "Không tìm thấy cơ sở phòng khám.", 404);
+    }
+    return success(res, loc);
+  } catch (error) {
+    console.error("Error getting location:", error);
+    return fail(res, "Lỗi máy chủ.", 500);
   }
-  return success(res, loc);
+}
+
+// Admin handlers
+export async function listAdminLocations(_req, res) {
+  try {
+    const locations = await service.listAdminLocations();
+    return success(res, locations);
+  } catch (error) {
+    console.error("Error listing admin locations:", error);
+    return fail(res, "Không thể tải danh sách cơ sở.", 500);
+  }
+}
+
+export async function createLocation(req, res) {
+  try {
+    const location = await service.createLocation(req.body);
+    return success(res, location, 201);
+  } catch (error) {
+    console.error("Error creating location:", error);
+    return fail(res, error.message || "Không thể tạo cơ sở.", 400);
+  }
+}
+
+export async function updateLocation(req, res) {
+  try {
+    const location = await service.updateLocation(req.params.id, req.body);
+    return success(res, location);
+  } catch (error) {
+    console.error("Error updating location:", error);
+    return fail(res, error.message || "Không thể cập nhật cơ sở.", 400);
+  }
+}
+
+export async function deleteLocation(req, res) {
+  try {
+    const location = await service.deleteLocation(req.params.id);
+    return success(res, location);
+  } catch (error) {
+    console.error("Error deleting location:", error);
+    return fail(res, error.message || "Không thể xóa cơ sở.", 400);
+  }
 }

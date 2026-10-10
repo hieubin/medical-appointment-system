@@ -20,7 +20,20 @@ export function PatientPortal({ onAdmin, onLogout }) {
   const [searchSpecialty, setSearchSpecialty] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
   const [searchDate, setSearchDate] = useState("");
+  const [clinicLocations, setClinicLocations] = useState(CLINIC_LOCATIONS);
   const [bookingLocation, setBookingLocation] = useState(CLINIC_LOCATIONS[0].id);
+
+  useEffect(() => {
+    api.get("/locations")
+      .then((r) => {
+        const data = r.data?.data;
+        if (Array.isArray(data) && data.length > 0) {
+          setClinicLocations(data);
+          setBookingLocation((prev) => (data.some((l) => l.id === prev) ? prev : data[0].id));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Booking Wizard States
   const [showBooking, setShowBooking] = useState(false);
@@ -233,10 +246,10 @@ export function PatientPortal({ onAdmin, onLogout }) {
     setBookingLoading(true);
     setError(null);
     try {
-      const selectedLocObj = CLINIC_LOCATIONS.find((l) => l.id === bookingLocation) || CLINIC_LOCATIONS[0];
+      const selectedLocObj = clinicLocations.find((l) => l.id === bookingLocation) || clinicLocations[0] || {};
       const fullNote = patientNote.trim()
-        ? `[Cơ sở: ${selectedLocObj.name}] ${patientNote.trim()}`
-        : `[Cơ sở: ${selectedLocObj.name}]`;
+        ? `[Cơ sở: ${selectedLocObj.name || "Cơ sở phòng khám"}] ${patientNote.trim()}`
+        : `[Cơ sở: ${selectedLocObj.name || "Cơ sở phòng khám"}]`;
 
       const payload = {
         doctorId: selectedDoctor.id,
@@ -468,10 +481,10 @@ export function PatientPortal({ onAdmin, onLogout }) {
                   cursor: "pointer",
                 }}
               >
-                <option value="">Tất cả cơ sở ({CLINIC_LOCATIONS.length} chi nhánh)</option>
-                {CLINIC_LOCATIONS.map((loc) => (
+                <option value="">Tất cả cơ sở ({clinicLocations.length} chi nhánh)</option>
+                {clinicLocations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
-                    {loc.shortName} - {loc.city}
+                    {loc.shortName || loc.name} - {loc.city}
                   </option>
                 ))}
               </select>
@@ -874,7 +887,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
               <div className="drawer-section">
                 <h3>1. Chọn cơ sở phòng khám</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
-                  {CLINIC_LOCATIONS.map((loc) => {
+                  {clinicLocations.map((loc) => {
                     const isSelected = bookingLocation === loc.id;
                     return (
                       <div
@@ -988,7 +1001,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
                   <div className="booking-summary-row">
                     <span className="booking-summary-label">Cơ sở khám:</span>
                     <span className="booking-summary-val" style={{ fontWeight: 600, color: "var(--teal)" }}>
-                      {CLINIC_LOCATIONS.find((l) => l.id === bookingLocation)?.shortName}
+                      {clinicLocations.find((l) => l.id === bookingLocation)?.shortName || clinicLocations.find((l) => l.id === bookingLocation)?.name}
                     </span>
                   </div>
                   <div className="booking-summary-row">
@@ -1133,13 +1146,13 @@ export function PatientPortal({ onAdmin, onLogout }) {
                   <div className="booking-summary-row">
                     <span className="booking-summary-label">Cơ sở khám:</span>
                     <span className="booking-summary-val" style={{ fontWeight: 600 }}>
-                      {CLINIC_LOCATIONS.find((l) => l.id === bookingLocation)?.name}
+                      {clinicLocations.find((l) => l.id === bookingLocation)?.name}
                     </span>
                   </div>
                   <div className="booking-summary-row" style={{ marginTop: -4 }}>
                     <span className="booking-summary-label">Địa chỉ:</span>
                     <span className="booking-summary-val" style={{ fontSize: 11, color: "#64748b" }}>
-                      {CLINIC_LOCATIONS.find((l) => l.id === bookingLocation)?.fullAddress}
+                      {clinicLocations.find((l) => l.id === bookingLocation)?.fullAddress || clinicLocations.find((l) => l.id === bookingLocation)?.address}
                     </span>
                   </div>
                   <div className="booking-summary-row">
@@ -1250,19 +1263,19 @@ export function PatientPortal({ onAdmin, onLogout }) {
                     <div className="booking-summary-row">
                       <span className="booking-summary-label">Cơ sở khám:</span>
                       <span className="booking-summary-val" style={{ fontWeight: 600 }}>
-                        {bookedResult.location?.name || CLINIC_LOCATIONS.find((l) => l.id === bookingLocation)?.name}
+                        {bookedResult.location?.name || clinicLocations.find((l) => l.id === bookingLocation)?.name}
                       </span>
                     </div>
                     <div className="booking-summary-row" style={{ marginTop: -4 }}>
                       <span className="booking-summary-label">Địa chỉ:</span>
                       <span className="booking-summary-val" style={{ fontSize: 11, color: "#64748b" }}>
-                        {bookedResult.location?.fullAddress || CLINIC_LOCATIONS.find((l) => l.id === bookingLocation)?.fullAddress}
+                        {bookedResult.location?.fullAddress || clinicLocations.find((l) => l.id === bookingLocation)?.fullAddress || clinicLocations.find((l) => l.id === bookingLocation)?.address}
                       </span>
                     </div>
                     <div className="booking-summary-row">
                       <span className="booking-summary-label">Hotline cơ sở:</span>
                       <span className="booking-summary-val" style={{ color: "var(--teal)", fontWeight: 600 }}>
-                        {bookedResult.location?.hotline || CLINIC_LOCATIONS.find((l) => l.id === bookingLocation)?.hotline}
+                        {bookedResult.location?.hotline || clinicLocations.find((l) => l.id === bookingLocation)?.hotline}
                       </span>
                     </div>
                     <div className="booking-summary-row">
@@ -1644,10 +1657,10 @@ export function PatientPortal({ onAdmin, onLogout }) {
               <div className="support-info-list">
                 <div style={{ marginBottom: 4 }}>
                   <strong style={{ fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 6 }}>
-                    <Icon name="building" size={16} style={{ color: "var(--teal)" }} /> Hệ thống 4 cơ sở phòng khám Tâm An
+                    <Icon name="building" size={16} style={{ color: "var(--teal)" }} /> Hệ thống {clinicLocations.length} cơ sở phòng khám Tâm An
                   </strong>
                 </div>
-                {CLINIC_LOCATIONS.map((loc) => (
+                {clinicLocations.map((loc) => (
                   <div key={loc.id} className="support-info-item" style={{ padding: "8px 0", borderBottom: "1px dashed var(--border)" }}>
                     <div style={{ width: "100%" }}>
                       <strong style={{ fontSize: 13, color: "var(--teal)" }}>{loc.name}</strong>

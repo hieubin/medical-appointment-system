@@ -15,24 +15,24 @@ export const specialtyBodySchema = z.object({
 });
 
 export const doctorBodySchema = z.object({
-  fullName: z.string().trim().min(2).max(150),
-  phone: z.string().trim().max(20).optional(),
-  email: z.string().email().optional(),
-  licenseNumber: z.string().trim().max(80).optional(),
-  title: z.string().trim().max(100).optional(),
-  bio: z.string().trim().max(2000).optional(),
-  avatarUrl: z.string().url().optional(),
+  fullName: z.string().trim().min(2, "Họ và tên tối thiểu 2 ký tự").max(150),
+  phone: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().max(20).optional()),
+  email: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().email("Email không đúng định dạng").optional()),
+  licenseNumber: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().max(80).optional()),
+  title: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().max(100).optional()),
+  bio: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().max(2000).optional()),
+  avatarUrl: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().url("Đường dẫn ảnh đại diện không hợp lệ").optional()),
   status: statusSchema.optional(),
-  specialtyIds: z.array(idSchema).min(1),
+  specialtyIds: z.array(idSchema).min(1, "Vui lòng chọn ít nhất 1 chuyên khoa"),
 });
 
 export const serviceBodySchema = z.object({
   name: z.string().trim().min(2).max(150),
-  slug: z.string().trim().min(2).max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  description: z.string().trim().max(1000).optional(),
-  durationMinutes: z.number().int().positive().max(480),
+  slug: z.string().trim().min(2).max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  description: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().max(1000).optional()),
+  durationMinutes: z.coerce.number().int().positive().max(480),
   price: z.union([z.string(), z.number()]).transform((value) => BigInt(value)),
-  specialtyId: idSchema.optional(),
+  specialtyId: z.preprocess((val) => (val === "" || val === null ? undefined : val), idSchema.optional()),
   status: statusSchema.optional(),
 });
 
@@ -65,8 +65,8 @@ export const statusBodySchema = z.object({
 });
 
 export const statisticsQuerySchema = z.object({
-  from: dateSchema,
-  to: dateSchema,
+  from: dateSchema.optional(),
+  to: dateSchema.optional(),
   groupBy: z.enum(["day", "week"]).default("day"),
   doctorId: idSchema.optional(),
   specialtyId: idSchema.optional(),

@@ -37,15 +37,29 @@ export function listAdminDoctors() {
 
 function doctorData(data) {
   const { specialtyIds, ...doctor } = data;
-  return { doctor, specialtyIds };
+  const cleanedDoctor = { ...doctor };
+  for (const key of ["phone", "email", "licenseNumber", "title", "bio", "avatarUrl"]) {
+    if (cleanedDoctor[key] === "" || cleanedDoctor[key] === undefined) {
+      cleanedDoctor[key] = null;
+    }
+  }
+  return { doctor: cleanedDoctor, specialtyIds: specialtyIds || [] };
 }
 
 export async function createDoctor(data) {
   const { doctor, specialtyIds } = doctorData(data);
   return prisma.$transaction(async (tx) => {
-    const specialties = await tx.specialty.count({ where: { id: { in: specialtyIds }, status: "ACTIVE" } });
-    if (specialties !== new Set(specialtyIds).size) throw Object.assign(new Error("Chuyên khoa không hợp lệ."), { status: 422 });
-    const created = await tx.doctor.create({ data: { ...doctor, specialties: { create: specialtyIds.map((specialtyId) => ({ specialtyId })) } }, select: doctorSelect });
+    if (specialtyIds.length > 0) {
+      const specialties = await tx.specialty.count({ where: { id: { in: specialtyIds }, status: "ACTIVE" } });
+      if (specialties !== new Set(specialtyIds).size) throw Object.assign(new Error("Chuyên khoa không hợp lệ."), { status: 422 });
+    }
+    const created = await tx.doctor.create({
+      data: {
+        ...doctor,
+        specialties: specialtyIds.length > 0 ? { create: specialtyIds.map((specialtyId) => ({ specialtyId })) } : undefined,
+      },
+      select: doctorSelect,
+    });
     return flattenDoctor(created);
   });
 }
@@ -53,16 +67,36 @@ export async function createDoctor(data) {
 export async function updateDoctor(id, data) {
   const { doctor, specialtyIds } = doctorData(data);
   return prisma.$transaction(async (tx) => {
-    const specialties = await tx.specialty.count({ where: { id: { in: specialtyIds }, status: "ACTIVE" } });
-    if (specialties !== new Set(specialtyIds).size) throw Object.assign(new Error("Chuyên khoa không hợp lệ."), { status: 422 });
-    await tx.doctorSpecialty.deleteMany({ where: { doctorId: id } });
-    const updated = await tx.doctor.update({ where: { id }, data: { ...doctor, specialties: { create: specialtyIds.map((specialtyId) => ({ specialtyId })) } }, select: doctorSelect });
+    if (specialtyIds.length > 0) {
+      const specialties = await tx.specialty.count({ where: { id: { in: specialtyIds }, status: "ACTIVE" } });
+      if (specialties !== new Set(specialtyIds).size) throw Object.assign(new Error("Chuyên khoa không hợp lệ."), { status: 422 });
+      await tx.doctorSpecialty.deleteMany({ where: { doctorId: id } });
+      for (const specialtyId of specialtyIds) {
+        await tx.doctorSpecialty.create({ data: { doctorId: id, specialtyId } });
+      }
+    }
+    const updated = await tx.doctor.update({
+      where: { id },
+      data: doctor,
+      select: doctorSelect,
+    });
     return flattenDoctor(updated);
   });
 }
 
+export async function deleteDoctor(id) {
+  const appointmentCount = await prisma.appointment.count({ where: { doctorId: id } });
+  if (appointmentCount > 0) {
+    return prisma.doctor.update({ where: { id }, data: { status: "INACTIVE" }, select: doctorSelect }).then(flattenDoctor);
+  }
+  await prisma.workingSchedule.deleteMany({ where: { doctorId: id } });
+  await prisma.scheduleException.deleteMany({ where: { doctorId: id } });
+  await prisma.doctorSpecialty.deleteMany({ where: { doctorId: id } });
+  return prisma.doctor.delete({ where: { id }, select: doctorSelect }).then(flattenDoctor);
+}
+
 export function deactivateDoctor(id) {
-  return prisma.doctor.update({ where: { id }, data: { status: "INACTIVE" }, select: doctorSelect }).then(flattenDoctor);
+  return deleteDoctor(id);
 }
 
 export function listAdminServices() {

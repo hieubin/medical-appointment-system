@@ -11,6 +11,7 @@ const defaultOrigins = [
   "http://localhost:3002",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:3002",
+  "https://medical-appointment-system-lake.vercel.app",
 ];
 
 function allowedOrigins() {
@@ -25,7 +26,9 @@ export const app = express();
 
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(cookieParser());
 app.use(cors({
   origin(origin, callback) {

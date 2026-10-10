@@ -3,10 +3,11 @@ export const AUTH_COOKIE = "hh_session";
 const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
 
 function baseOptions() {
+  const production = process.env.NODE_ENV === "production";
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: production,
+    sameSite: production ? "none" : "lax",
     path: "/",
   };
 }

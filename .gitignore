@@ -4,3 +4,9 @@ dist
 .env.local
 *.log
 .DS_Store
+
+# Tài liệu kiểm thử local, không đưa lên git
+generate_test_doc.py
+*.doc
+*.docx
+~$*

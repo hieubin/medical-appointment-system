@@ -3,7 +3,7 @@ import { prisma } from "../models/index.js";
 export const INITIAL_CLINIC_LOCATIONS = [
   {
     id: "loc-q5",
-    name: "Phòng khám Tâm An - Quận 5",
+    name: "Phòng khám Đa khoa Hiếu Hải - Quận 5",
     shortName: "Cơ sở Quận 5 (Trụ sở chính)",
     address: "123 Nguyễn Văn Cừ, Q.5, TP.HCM",
     fullAddress: "123 Nguyễn Văn Cừ, Phường 4, Quận 5, TP. Hồ Chí Minh",
@@ -14,7 +14,7 @@ export const INITIAL_CLINIC_LOCATIONS = [
   },
   {
     id: "loc-bt",
-    name: "Phòng khám Tâm An - Bình Thạnh",
+    name: "Phòng khám Đa khoa Hiếu Hải - Bình Thạnh",
     shortName: "Cơ sở Bình Thạnh",
     address: "456 Điện Biên Phủ, Q. Bình Thạnh, TP.HCM",
     fullAddress: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh",
@@ -25,7 +25,7 @@ export const INITIAL_CLINIC_LOCATIONS = [
   },
   {
     id: "loc-td",
-    name: "Phòng khám Tâm An - TP. Thủ Đức",
+    name: "Phòng khám Đa khoa Hiếu Hải - TP. Thủ Đức",
     shortName: "Cơ sở TP. Thủ Đức",
     address: "88 Võ Văn Ngân, TP. Thủ Đức, TP.HCM",
     fullAddress: "88 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh",
@@ -36,7 +36,7 @@ export const INITIAL_CLINIC_LOCATIONS = [
   },
   {
     id: "loc-cg",
-    name: "Phòng khám Tâm An - Cầu Giấy (HN)",
+    name: "Phòng khám Đa khoa Hiếu Hải - Cầu Giấy (HN)",
     shortName: "Cơ sở Cầu Giấy (Hà Nội)",
     address: "78 Duy Tân, Cầu Giấy, Hà Nội",
     fullAddress: "78 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="hhGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="50%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#0f172a" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background rounded squircle -->
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#hhGradient)" filter="url(#shadow)"/>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.25"/>
+
+  <!-- Bold Medical Cross (+) -->
+  <rect x="27" y="16" width="10" height="32" rx="4" fill="#ffffff"/>
+  <rect x="16" y="27" width="32" height="10" rx="4" fill="#ffffff"/>
+  
+  <!-- Subtle center heartbeat dot -->
+  <circle cx="32" cy="32" r="2.8" fill="#0d9488"/>
+</svg>

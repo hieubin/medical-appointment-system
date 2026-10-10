@@ -7,6 +7,7 @@ import {
   TextField,
   LinkButton,
   Heading,
+  ConfirmModal,
 } from "./ui.jsx";
 import { api } from "../api/axios";
 
@@ -15,7 +16,7 @@ const ITEMS_PER_PAGE = 20;
 export const CLINIC_LOCATIONS = [
   {
     id: "loc-q5",
-    name: "Phòng khám Tâm An - Quận 5",
+    name: "Phòng khám Đa khoa Hiếu Hải - Quận 5",
     shortName: "Cơ sở Quận 5 (Trụ sở chính)",
     address: "123 Nguyễn Văn Cừ, Q.5, TP.HCM",
     fullAddress: "123 Nguyễn Văn Cừ, Phường 4, Quận 5, TP. Hồ Chí Minh",
@@ -25,7 +26,7 @@ export const CLINIC_LOCATIONS = [
   },
   {
     id: "loc-bt",
-    name: "Phòng khám Tâm An - Bình Thạnh",
+    name: "Phòng khám Đa khoa Hiếu Hải - Bình Thạnh",
     shortName: "Cơ sở Bình Thạnh",
     address: "456 Điện Biên Phủ, Q. Bình Thạnh, TP.HCM",
     fullAddress: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh",
@@ -35,7 +36,7 @@ export const CLINIC_LOCATIONS = [
   },
   {
     id: "loc-td",
-    name: "Phòng khám Tâm An - TP. Thủ Đức",
+    name: "Phòng khám Đa khoa Hiếu Hải - TP. Thủ Đức",
     shortName: "Cơ sở TP. Thủ Đức",
     address: "88 Võ Văn Ngân, TP. Thủ Đức, TP.HCM",
     fullAddress: "88 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh",
@@ -45,7 +46,7 @@ export const CLINIC_LOCATIONS = [
   },
   {
     id: "loc-cg",
-    name: "Phòng khám Tâm An - Cầu Giấy (HN)",
+    name: "Phòng khám Đa khoa Hiếu Hải - Cầu Giấy (HN)",
     shortName: "Cơ sở Cầu Giấy (Hà Nội)",
     address: "78 Duy Tân, Cầu Giấy, Hà Nội",
     fullAddress: "78 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
@@ -96,42 +97,68 @@ export function getDoctorLocation(doc, index = 0, locations = CLINIC_LOCATIONS) 
   return locList[hash % locList.length];
 }
 
-function Sidebar({ onLogout, onPatient, tab, setTab }) {
+function Sidebar({ onLogout, tab, setTab, mobileOpen, onCloseMobile }) {
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand"><Logo inverse /></div>
-      <div className="workspace-label">QUẢN TRỊ</div>
-      <nav>
-        <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>
-          <Icon name="grid" />Tổng quan
-        </button>
-        <button className={tab === "appointments" ? "active" : ""} onClick={() => setTab("appointments")}>
-          <Icon name="calendar" />Lịch hẹn
-        </button>
-        <button className={tab === "doctors" ? "active" : ""} onClick={() => setTab("doctors")}>
-          <Icon name="doctor" />Bác sĩ
-        </button>
-        <button className={tab === "services" ? "active" : ""} onClick={() => setTab("services")}>
-          <Icon name="clipboard" />Dịch vụ
-        </button>
-        <button className={tab === "locations" ? "active" : ""} onClick={() => setTab("locations")}>
-          <Icon name="building" />Cơ sở
-        </button>
-      </nav>
-      <div className="workspace-label lower">TÀI KHOẢN</div>
-      <nav>
-        <button onClick={onPatient}><Icon name="user" />Cổng bệnh nhân</button>
-      </nav>
-      <div className="sidebar-user">
-        <span className="avatar teal small">AD</span>
-        <div><strong>Admin</strong><small>admin@clinic.test</small></div>
-        <button aria-label="Đăng xuất" onClick={onLogout} style={{ border: 0, background: "none", color: "#94a3b8", cursor: "pointer" }}><Icon name="logout" /></button>
-      </div>
-    </aside>
+    <>
+      {mobileOpen && (
+        <div className="sidebar-backdrop" onClick={onCloseMobile} />
+      )}
+      <aside className={`sidebar ${mobileOpen ? "open" : ""}`}>
+        <div className="sidebar-brand">
+          <Logo inverse />
+          <button
+            type="button"
+            className="sidebar-mobile-close"
+            onClick={onCloseMobile}
+            aria-label="Đóng menu"
+          >
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+        <div className="workspace-label">QUẢN TRỊ</div>
+        <nav>
+          <button
+            className={tab === "overview" ? "active" : ""}
+            onClick={() => { setTab("overview"); onCloseMobile?.(); }}
+          >
+            <Icon name="grid" />Tổng quan
+          </button>
+          <button
+            className={tab === "appointments" ? "active" : ""}
+            onClick={() => { setTab("appointments"); onCloseMobile?.(); }}
+          >
+            <Icon name="calendar" />Lịch hẹn
+          </button>
+          <button
+            className={tab === "doctors" ? "active" : ""}
+            onClick={() => { setTab("doctors"); onCloseMobile?.(); }}
+          >
+            <Icon name="doctor" />Bác sĩ
+          </button>
+          <button
+            className={tab === "services" ? "active" : ""}
+            onClick={() => { setTab("services"); onCloseMobile?.(); }}
+          >
+            <Icon name="clipboard" />Dịch vụ
+          </button>
+          <button
+            className={tab === "locations" ? "active" : ""}
+            onClick={() => { setTab("locations"); onCloseMobile?.(); }}
+          >
+            <Icon name="building" />Cơ sở
+          </button>
+        </nav>
+        <div className="sidebar-user">
+          <span className="avatar teal small">AD</span>
+          <div><strong>Admin</strong><small>admin@clinic.test</small></div>
+          <button aria-label="Đăng xuất" onClick={onLogout} style={{ border: 0, background: "none", color: "#94a3b8", cursor: "pointer" }}><Icon name="logout" /></button>
+        </div>
+      </aside>
+    </>
   );
 }
 
-function Topbar({ tab, selectedLocation, setSelectedLocation, locations = CLINIC_LOCATIONS }) {
+function Topbar({ tab, selectedLocation, setSelectedLocation, locations = CLINIC_LOCATIONS, onOpenMobileSidebar }) {
   const titles = {
     overview: "Tổng quan",
     appointments: "Lịch hẹn",
@@ -142,6 +169,14 @@ function Topbar({ tab, selectedLocation, setSelectedLocation, locations = CLINIC
   const locList = locations && locations.length > 0 ? locations : CLINIC_LOCATIONS;
   return (
     <header className="admin-topbar">
+      <button
+        type="button"
+        className="admin-menu-toggle"
+        onClick={onOpenMobileSidebar}
+        aria-label="Mở menu quản trị"
+      >
+        <Icon name="menu" size={20} />
+      </button>
       <div className="breadcrumb">
         <span>Workspace</span><i>/</i><strong>{titles[tab] || "Tổng quan"}</strong>
       </div>
@@ -410,6 +445,8 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
 
   const fetchData = useCallback((page = 1) => {
     setLoading(true);
@@ -558,7 +595,7 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
                           <button className="quick" onClick={() => handleStatusChange(a.id, "COMPLETED")}>Hoàn thành</button>
                         )}
                         {(a.status === "PENDING" || a.status === "CONFIRMED") && (
-                          <button className="quick cancel" onClick={() => handleStatusChange(a.id, "CANCELLED", "Hủy bởi admin")}>Hủy</button>
+                          <button className="quick cancel" onClick={() => setCancelTarget(a)}>Hủy</button>
                         )}
                         <button className="quick" onClick={() => setDrawer(a)}>Chi tiết</button>
                       </div>
@@ -636,7 +673,7 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
                   <button className="btn primary" onClick={() => { handleStatusChange(drawer.id, "CONFIRMED"); setDrawer(null); }}>Xác nhận lịch hẹn</button>
                 )}
                 {(drawer.status === "PENDING" || drawer.status === "CONFIRMED") && (
-                  <button className="btn danger-outline" onClick={() => { handleStatusChange(drawer.id, "CANCELLED", "Hủy bởi admin"); setDrawer(null); }}>Hủy lịch hẹn</button>
+                  <button className="btn danger-outline" onClick={() => setCancelTarget(drawer)}>Hủy lịch hẹn</button>
                 )}
                 <button className="btn secondary" onClick={() => setDrawer(null)}>Đóng</button>
               </div>
@@ -644,6 +681,45 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
           </>
         );
       })()}
+      {/* Custom Confirm Modal for Admin Cancelling Appointment */}
+      <ConfirmModal
+        isOpen={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={async () => {
+          if (!cancelTarget) return;
+          await handleStatusChange(cancelTarget.id, "CANCELLED", "Hủy bởi admin");
+          setToastMessage(`Đã hủy lịch hẹn mã #${cancelTarget.bookingCode} thành công!`);
+          if (drawer?.id === cancelTarget.id) setDrawer(null);
+          setCancelTarget(null);
+        }}
+        title="Xác nhận hủy lịch hẹn"
+        subtitle={`Mã phiếu khám: #${cancelTarget?.bookingCode}`}
+        confirmText="Xác nhận hủy lịch"
+        cancelText="Giữ lại lịch"
+        variant="danger"
+      >
+        <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
+          Bạn có chắc chắn muốn hủy cuộc hẹn của bệnh nhân{" "}
+          <strong style={{ color: "#0f172a" }}>{cancelTarget?.patientName}</strong>{" "}
+          với bác sĩ{" "}
+          <strong style={{ color: "#0f172a" }}>{cancelTarget?.doctor?.fullName || "Bác sĩ phụ trách"}</strong>{" "}
+          không?
+        </p>
+      </ConfirmModal>
+
+      {toastMessage && (
+        <div className="admin-toast-success">
+          <Icon name="check" size={16} />
+          <span>{toastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            style={{ border: 0, background: "none", color: "#fff", cursor: "pointer", marginLeft: 8 }}
+          >
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      )}
     </>
   );
 }
@@ -778,7 +854,7 @@ function DoctorModal({ isOpen, mode, doctor, specialties, onClose, onSaved }) {
                 <label>Email</label>
                 <input
                   type="email"
-                  placeholder="Ví dụ: doctor@medora.vn"
+                  placeholder="Ví dụ: doctor@hieuhai.vn"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />
@@ -1462,7 +1538,7 @@ function LocationModal({ isOpen, mode, location, onClose, onSaved }) {
               <label>Tên đầy đủ cơ sở <span className="req">*</span></label>
               <input
                 type="text"
-                placeholder="Ví dụ: Phòng khám Tâm An - Quận 1"
+                placeholder="Ví dụ: Phòng khám Đa khoa Hiếu Hải - Quận 1"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 required
@@ -1757,11 +1833,12 @@ function Locations({ locations = [], onLocationsChanged }) {
 }
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
-export default function AdminDashboard({ onLogout, onPatient }) {
+export default function AdminDashboard({ onLogout }) {
   const [tab, setTab] = useState("overview");
   const [user, setUser] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [locations, setLocations] = useState(CLINIC_LOCATIONS);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const fetchLocations = useCallback(() => {
     api.get("/admin/locations")
@@ -1798,9 +1875,10 @@ export default function AdminDashboard({ onLogout, onPatient }) {
     <div className="admin-shell">
       <Sidebar
         onLogout={onLogout}
-        onPatient={onPatient}
         tab={tab}
         setTab={setTab}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
       <main className="admin-main">
@@ -1809,6 +1887,7 @@ export default function AdminDashboard({ onLogout, onPatient }) {
           selectedLocation={selectedLocation}
           setSelectedLocation={setSelectedLocation}
           locations={locations}
+          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
         />
 
         <div className="admin-content">

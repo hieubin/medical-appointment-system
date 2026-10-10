@@ -1,16 +1,17 @@
 import { prisma } from "../models/index.js";
 
-export function getActiveDoctors({ search, specialtyId } = {}) {
+function normalizeText(str) {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .trim();
+}
+
+export async function getActiveDoctors({ search, specialtyId } = {}) {
   const where = {
     status: "ACTIVE",
-    ...(search
-      ? {
-          fullName: {
-            contains: search,
-            mode: "insensitive",
-          },
-        }
-      : {}),
     ...(specialtyId
       ? {
           specialties: {
@@ -20,7 +21,7 @@ export function getActiveDoctors({ search, specialtyId } = {}) {
       : {}),
   };
 
-  return prisma.doctor.findMany({
+  const doctors = await prisma.doctor.findMany({
     where,
     orderBy: { fullName: "asc" },
     select: {
@@ -47,12 +48,39 @@ export function getActiveDoctors({ search, specialtyId } = {}) {
         },
       },
     },
-  }).then((doctors) =>
-    doctors.map(({ specialties, ...doctor }) => ({
-      ...doctor,
-      specialties: specialties.map(({ specialty }) => specialty),
-    })),
-  );
+  });
+
+  const formatted = doctors.map(({ specialties, ...doctor }) => ({
+    ...doctor,
+    specialties: specialties.map(({ specialty }) => specialty),
+  }));
+
+  if (!search || !search.trim()) {
+    return formatted;
+  }
+
+  const queryNorm = normalizeText(search);
+
+  return formatted.filter((doc) => {
+    const docName = normalizeText(doc.fullName);
+    const docTitle = normalizeText(doc.title);
+    const docBio = normalizeText(doc.bio);
+    const specNames = doc.specialties.map((s) => normalizeText(s.name));
+    const specSlugs = doc.specialties.map((s) => normalizeText(s.slug));
+
+    if (docName.includes(queryNorm) || queryNorm.includes(docName)) return true;
+    if (docTitle.includes(queryNorm)) return true;
+    if (docBio.includes(queryNorm)) return true;
+
+    if (
+      specNames.some((sn) => sn.includes(queryNorm) || queryNorm.includes(sn)) ||
+      specSlugs.some((ss) => ss.includes(queryNorm) || queryNorm.includes(ss))
+    ) {
+      return true;
+    }
+
+    return false;
+  });
 }
 
 export function getActiveDoctorById(id) {

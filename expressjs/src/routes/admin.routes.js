@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as controller from "../controllers/admin.controller.js";
+import * as locationController from "../controllers/location.controller.js";
 import { validate } from "../middleware/validate.middleware.js";
 import {
   doctorBodySchema,
@@ -17,6 +18,12 @@ const scheduleParamsSchema = z.object({ id: z.string().uuid() });
 const scheduleIdParamsSchema = z.object({ id: z.string().uuid(), scheduleId: z.string().uuid() });
 
 export const adminRouter = Router();
+
+adminRouter.route("/locations")
+  .get(locationController.listAdminLocations)
+  .post(locationController.createLocation);
+adminRouter.put("/locations/:id", locationController.updateLocation);
+adminRouter.delete("/locations/:id", locationController.deleteLocation);
 
 adminRouter.route("/specialties")
   .get(controller.listSpecialties)

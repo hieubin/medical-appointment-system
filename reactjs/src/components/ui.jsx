@@ -1,13 +1,15 @@
 import React from "react";
 
-export function Logo({ inverse = false }) {
+export function Logo({ inverse = false, showSub = true, className = "" }) {
   return (
-    <div className={`brand ${inverse ? "brand-inverse" : ""}`}>
-      <span className="brand-mark">
-        <span></span>
-        <span></span>
+    <div className={`brand ${inverse ? "brand-inverse" : ""} ${className}`.trim()}>
+      <span className="brand-logo-gem">
+        <span className="gem-plus">+</span>
       </span>
-      <span className="brand-name">Medora</span>
+      <div className="brand-text-col">
+        <span className="brand-title brand-name">Hiếu Hải</span>
+        {showSub && <span className="brand-sub">PHÒNG KHÁM ĐA KHOA</span>}
+      </div>
     </div>
   );
 }
@@ -185,31 +187,258 @@ export function TextField({
   );
 }
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, label }) {
   const map = {
-    Confirmed: { bg: "#dcfce7", color: "#15803d" },
-    Pending: { bg: "#fef3c7", color: "#b45309" },
-    Completed: { bg: "#e0e7ff", color: "#4338ca" },
-    Cancelled: { bg: "#fee2e2", color: "#b91c1c" },
-    "No-Show": { bg: "#f1f5f9", color: "#475569" },
+    CONFIRMED: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Đã xác nhận" },
+    Confirmed: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Đã xác nhận" },
+    PENDING: { bg: "#fffbeb", color: "#b45309", border: "#fde68a", label: "Chờ duyệt" },
+    Pending: { bg: "#fffbeb", color: "#b45309", border: "#fde68a", label: "Chờ duyệt" },
+    COMPLETED: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe", label: "Hoàn thành" },
+    Completed: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe", label: "Hoàn thành" },
+    CANCELLED: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca", label: "Đã hủy" },
+    Cancelled: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca", label: "Đã hủy" },
+    NO_SHOW: { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Vắng mặt" },
+    "No-Show": { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Vắng mặt" },
+    ACTIVE: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Hoạt động" },
+    Active: { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0", label: "Hoạt động" },
+    INACTIVE: { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Tạm ngưng" },
+    Inactive: { bg: "#f8fafc", color: "#64748b", border: "#e2e8f0", label: "Tạm ngưng" },
   };
-  const s = map[status] || map.Pending;
+  const item = map[status] || { bg: "#f8fafc", color: "#475569", border: "#e2e8f0", label: status };
+  const displayText = label || item.label || status;
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "3px 8px",
+        padding: "4px 10px",
         borderRadius: 99,
-        fontSize: 9,
-        fontWeight: 700,
-        background: s.bg,
-        color: s.color,
+        fontSize: 12,
+        fontWeight: 600,
+        background: item.bg,
+        color: item.color,
+        border: `1px solid ${item.border}`,
+        whiteSpace: "nowrap",
       }}
     >
-      <i style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor", display: "inline-block" }}></i>
-      {status}
+      <i style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }}></i>
+      {displayText}
     </span>
+  );
+}
+
+export function Toast({ message, type = "success", onClose, duration = 3500 }) {
+  React.useEffect(() => {
+    if (!message || !duration) return;
+    const timer = setTimeout(() => {
+      onClose?.();
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [message, duration, onClose]);
+
+  if (!message) return null;
+
+  const typeConfig = {
+    success: {
+      bg: "#065f46",
+      border: "#047857",
+      icon: <Icon name="check" size={16} />,
+    },
+    error: {
+      bg: "#991b1b",
+      border: "#b91c1c",
+      icon: <Icon name="alert" size={16} />,
+    },
+    info: {
+      bg: "#0f172a",
+      border: "#334155",
+      icon: <Icon name="shield" size={16} />,
+    },
+    warning: {
+      bg: "#92400e",
+      border: "#b45309",
+      icon: <Icon name="alert" size={16} />,
+    },
+  }[type] || {
+    bg: "#065f46",
+    border: "#047857",
+    icon: <Icon name="check" size={16} />,
+  };
+
+  return (
+    <div
+      className="custom-toast-pill"
+      style={{
+        position: "fixed",
+        bottom: 24,
+        right: 24,
+        background: typeConfig.bg,
+        border: `1px solid ${typeConfig.border}`,
+        color: "#ffffff",
+        padding: "12px 18px",
+        borderRadius: 12,
+        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)",
+        fontSize: 13,
+        fontWeight: 600,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        animation: "adminScaleIn 0.25s ease-out",
+        maxWidth: "90vw",
+      }}
+      role="status"
+    >
+      <span style={{ display: "grid", placeItems: "center" }}>{typeConfig.icon}</span>
+      <span style={{ flex: 1 }}>{message}</span>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Đóng thông báo"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "rgba(255, 255, 255, 0.8)",
+            cursor: "pointer",
+            padding: 2,
+            display: "grid",
+            placeItems: "center",
+            marginLeft: 4,
+          }}
+        >
+          <Icon name="x" size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = "Xác nhận thao tác",
+  subtitle,
+  message,
+  confirmText = "Xác nhận",
+  cancelText = "Hủy bỏ",
+  variant = "danger",
+  loading = false,
+  children,
+}) {
+  if (!isOpen) return null;
+  const isDanger = variant === "danger";
+
+  return (
+    <div className="admin-modal-backdrop" onClick={loading ? undefined : onClose}>
+      <div
+        className="admin-modal-card"
+        style={{ maxWidth: 460 }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="admin-modal-head">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: isDanger ? "#fee2e2" : "#fef3c7",
+                color: isDanger ? "#dc2626" : "#d97706",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="alert" size={20} />
+            </span>
+            <div>
+              <h3 style={{ fontSize: 16 }}>{title}</h3>
+              {subtitle && <p>{subtitle}</p>}
+            </div>
+          </div>
+          <button type="button" disabled={loading} onClick={onClose} aria-label="Đóng">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+
+        <div className="admin-modal-body">
+          {message && (
+            <p style={{ fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.6 }}>
+              {message}
+            </p>
+          )}
+          {children}
+        </div>
+
+        <div className="admin-modal-foot">
+          <Button variant="ghost" disabled={loading} onClick={onClose}>
+            {cancelText}
+          </Button>
+          <Button
+            variant={isDanger ? "danger" : "primary"}
+            disabled={loading}
+            onClick={onConfirm}
+            style={
+              isDanger
+                ? {
+                    background: "#dc2626",
+                    color: "#ffffff",
+                    borderColor: "#dc2626",
+                  }
+                : {}
+            }
+          >
+            {loading ? "Đang xử lý…" : confirmText}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function InfoModal({
+  isOpen,
+  onClose,
+  title = "Thông báo",
+  message,
+  buttonText = "Đã hiểu",
+  children,
+}) {
+  if (!isOpen) return null;
+  return (
+    <div className="admin-modal-backdrop" onClick={onClose}>
+      <div
+        className="admin-modal-card"
+        style={{ maxWidth: 440 }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="admin-modal-head">
+          <h3>{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Đóng">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="admin-modal-body">
+          {message && (
+            <p style={{ fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.6 }}>
+              {message}
+            </p>
+          )}
+          {children}
+        </div>
+        <div className="admin-modal-foot">
+          <Button variant="primary" onClick={onClose}>
+            {buttonText}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

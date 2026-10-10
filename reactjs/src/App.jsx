@@ -7,11 +7,35 @@ import {
   TextField,
   LinkButton,
   StatusBadge,
+  Toast,
+  ConfirmModal,
+  InfoModal,
 } from "./components/ui.jsx";
-import AdminDashboard from "./components/AdminDashboard";
+import AdminDashboard, { CLINIC_LOCATIONS, getAppointmentLocation, getDoctorLocation } from "./components/AdminDashboard";
 import { api } from "./api/axios.js";
 
-export { Logo, Heading, Icon, Button, TextField, LinkButton, StatusBadge };
+export { Logo, Heading, Icon, Button, TextField, LinkButton, StatusBadge, Toast, ConfirmModal, InfoModal, CLINIC_LOCATIONS };
+
+/**
+ * Lấy lời chào phù hợp theo thời gian thực trong ngày
+ * - 05:00 - 10:59: Chào buổi sáng
+ * - 11:00 - 13:59: Chào buổi trưa
+ * - 14:00 - 17:59: Chào buổi chiều
+ * - 18:00 - 04:59: Chào buổi tối
+ */
+export function getTimeGreeting(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 11) {
+    return "Chào buổi sáng";
+  }
+  if (hour >= 11 && hour < 14) {
+    return "Chào buổi trưa";
+  }
+  if (hour >= 14 && hour < 18) {
+    return "Chào buổi chiều";
+  }
+  return "Chào buổi tối";
+}
 
 // ─── PATIENT PORTAL ────────────────────────────────────────────────────────────
 
@@ -20,6 +44,20 @@ export function PatientPortal({ onAdmin, onLogout }) {
   const [searchSpecialty, setSearchSpecialty] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
   const [searchDate, setSearchDate] = useState("");
+  const [clinicLocations, setClinicLocations] = useState(CLINIC_LOCATIONS);
+  const [bookingLocation, setBookingLocation] = useState(CLINIC_LOCATIONS[0].id);
+
+  useEffect(() => {
+    api.get("/locations")
+      .then((r) => {
+        const data = r.data?.data;
+        if (Array.isArray(data) && data.length > 0) {
+          setClinicLocations(data);
+          setBookingLocation((prev) => (data.some((l) => l.id === prev) ? prev : data[0].id));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Booking Wizard States
   const [showBooking, setShowBooking] = useState(false);
@@ -58,6 +96,8 @@ export function PatientPortal({ onAdmin, onLogout }) {
   // Appointments
   const [myAppointments, setMyAppointments] = useState([]);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelModalAppointment, setCancelModalAppointment] = useState(null);
+  const [toast, setToast] = useState(null);
 
   // Search & Modals
   const [searchResults, setSearchResults] = useState([]);
@@ -65,6 +105,9 @@ export function PatientPortal({ onAdmin, onLogout }) {
   const [showResults, setShowResults] = useState(false);
   const [showAllDoctors, setShowAllDoctors] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [copyHotlineSuccess, setCopyHotlineSuccess] = useState(false);
+  const [doctorFilter, setDoctorFilter] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [medicalRecord, setMedicalRecord] = useState(null);
   const [profileForm, setProfileForm] = useState({});
@@ -90,9 +133,25 @@ export function PatientPortal({ onAdmin, onLogout }) {
       .catch(() => setMyAppointments([]));
   };
 
+  // Fetch and update medical profile
+  const fetchMedicalRecord = async () => {
+    setProfileLoading(true);
+    try {
+      const res = await api.get("/medical-records");
+      setMedicalRecord(res.data?.data);
+      setProfileForm(res.data?.data || {});
+    } catch {
+      setMedicalRecord(null);
+      setProfileForm({});
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (localStorage.getItem("token")) {
       fetchMyAppointments();
+      fetchMedicalRecord();
     }
   }, []);
 
@@ -114,23 +173,30 @@ export function PatientPortal({ onAdmin, onLogout }) {
         .slice(0, 2)
     : "LT";
 
-  // Fetch doctors for booking or viewing
+  // Fetch doctors on mount for directory, quick booking, and care team
   useEffect(() => {
-    if (showBooking || showAllDoctors) {
-      setLoading(true);
-      api
-        .get("/doctors")
-        .then((r) => {
-          const list = r.data?.data || [];
-          setDoctors(list);
-          if (list.length > 0 && !selectedDoctor) {
-            handleSelectDoctor(list[0]);
-          }
-        })
-        .catch(() => setDoctors([]))
-        .finally(() => setLoading(false));
-    }
-  }, [showBooking, showAllDoctors]);
+    setLoading(true);
+    api
+      .get("/doctors")
+      .then((r) => {
+        const list = r.data?.data || [];
+        setDoctors(list);
+        if (list.length > 0 && !selectedDoctor) {
+          handleSelectDoctor(list[0]);
+        }
+      })
+      .catch(() => setDoctors([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredDoctors = doctors.filter((doc) => {
+    if (!doctorFilter.trim()) return true;
+    const q = doctorFilter.toLowerCase();
+    const nameMatch = doc.fullName?.toLowerCase().includes(q);
+    const specMatch = doc.specialties?.some((s) => s.name?.toLowerCase().includes(q));
+    const titleMatch = doc.title?.toLowerCase().includes(q);
+    return nameMatch || specMatch || titleMatch;
+  });
 
   const handleSelectDoctor = async (doc) => {
     setSelectedDoctor(doc);
@@ -174,6 +240,9 @@ export function PatientPortal({ onAdmin, onLogout }) {
     setError(null);
     setBookedResult(null);
     setSelectedSlot(null);
+    if (searchLocation) {
+      setBookingLocation(searchLocation);
+    }
     if (searchDate) {
       setAppointmentDate(searchDate);
     }
@@ -219,6 +288,11 @@ export function PatientPortal({ onAdmin, onLogout }) {
     setBookingLoading(true);
     setError(null);
     try {
+      const selectedLocObj = clinicLocations.find((l) => l.id === bookingLocation) || clinicLocations[0] || {};
+      const fullNote = patientNote.trim()
+        ? `[Cơ sở: ${selectedLocObj.name || "Cơ sở phòng khám"}] ${patientNote.trim()}`
+        : `[Cơ sở: ${selectedLocObj.name || "Cơ sở phòng khám"}]`;
+
       const payload = {
         doctorId: selectedDoctor.id,
         specialtyId: selectedSpecialty?.id || selectedService.specialtyId || undefined,
@@ -228,7 +302,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
         patientEmail: patientEmail.trim() || undefined,
-        patientNote: patientNote.trim() || undefined,
+        patientNote: fullNote,
         patientId: user?.id || undefined,
       };
 
@@ -241,6 +315,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
         appointmentDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
+        location: selectedLocObj,
       });
       setBookingStep(4);
       fetchMyAppointments();
@@ -253,37 +328,32 @@ export function PatientPortal({ onAdmin, onLogout }) {
     }
   };
 
-  const handleCancelAppointment = async (apt) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn hủy lịch hẹn mã ${apt.bookingCode}?`)) {
-      return;
-    }
-    setCancelLoading(true);
-    try {
-      await api.post(`/appointments/${apt.id}/cancel`, {
-        patientPhone: apt.patientPhone || user?.phone || "",
-        cancelReason: "Bệnh nhân yêu cầu hủy qua portal",
-      });
-      alert("Hủy lịch khám thành công!");
-      fetchMyAppointments();
-    } catch (err) {
-      alert("Hủy lịch thất bại: " + (err.response?.data?.message || err.message));
-    } finally {
-      setCancelLoading(false);
-    }
+  const handleCancelAppointment = (apt) => {
+    if (!apt) return;
+    setCancelModalAppointment(apt);
   };
 
-  // Fetch and update medical profile
-  const fetchMedicalRecord = async () => {
-    setProfileLoading(true);
+  const handleConfirmCancelAppointment = async () => {
+    if (!cancelModalAppointment) return;
+    setCancelLoading(true);
     try {
-      const res = await api.get("/medical-records");
-      setMedicalRecord(res.data?.data);
-      setProfileForm(res.data?.data || {});
-    } catch {
-      setMedicalRecord(null);
-      setProfileForm({});
+      await api.post(`/appointments/${cancelModalAppointment.id}/cancel`, {
+        patientPhone: cancelModalAppointment.patientPhone || user?.phone || "",
+        cancelReason: "Bệnh nhân yêu cầu hủy qua portal",
+      });
+      setToast({
+        type: "success",
+        message: `Hủy lịch khám mã #${cancelModalAppointment.bookingCode} thành công!`,
+      });
+      setCancelModalAppointment(null);
+      fetchMyAppointments();
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: "Hủy lịch thất bại: " + (err.response?.data?.message || err.message),
+      });
     } finally {
-      setProfileLoading(false);
+      setCancelLoading(false);
     }
   };
 
@@ -301,22 +371,34 @@ export function PatientPortal({ onAdmin, onLogout }) {
         const res = await api.post("/medical-records", profileForm);
         setMedicalRecord(res.data?.data);
       }
-      alert("Lưu hồ sơ thành công!");
+      setToast({
+        type: "success",
+        message: "Lưu và cập nhật hồ sơ sức khỏe thành công!",
+      });
     } catch (err) {
-      alert("Lưu thất bại: " + (err.response?.data?.message || "Lỗi"));
+      setToast({
+        type: "error",
+        message: "Lưu thất bại: " + (err.response?.data?.message || "Lỗi kết nối"),
+      });
     } finally {
       setProfileLoading(false);
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearchWithQuery = async (specialtyQuery = searchSpecialty, locationId = searchLocation) => {
     setIsSearching(true);
     setShowResults(true);
     try {
       const params = new URLSearchParams();
-      if (searchSpecialty.trim()) params.append("search", searchSpecialty.trim());
+      if (specialtyQuery && specialtyQuery.trim()) {
+        params.append("search", specialtyQuery.trim());
+      }
       const res = await api.get(`/doctors?${params.toString()}`);
-      setSearchResults(res.data?.data || []);
+      let docs = res.data?.data || [];
+      if (locationId) {
+        docs = docs.filter((d, idx) => getDoctorLocation(d, idx, clinicLocations).id === locationId);
+      }
+      setSearchResults(docs);
     } catch {
       setSearchResults([]);
     } finally {
@@ -324,75 +406,225 @@ export function PatientPortal({ onAdmin, onLogout }) {
     }
   };
 
+  const handleSearch = () => {
+    handleSearchWithQuery(searchSpecialty, searchLocation);
+  };
+
   const activeAppointment = myAppointments.find((a) =>
     ["PENDING", "CONFIRMED"].includes(a.status)
   );
 
+  const bmi =
+    medicalRecord?.weight && medicalRecord?.height
+      ? (
+          Number(medicalRecord.weight) /
+          Math.pow(Number(medicalRecord.height) / 100, 2)
+        ).toFixed(1)
+      : null;
+
+  let bmiCategory = "";
+  if (bmi) {
+    const val = parseFloat(bmi);
+    if (val < 18.5) bmiCategory = "Thể trạng gầy";
+    else if (val < 23) bmiCategory = "Chuẩn y khoa";
+    else if (val < 25) bmiCategory = "Tiền béo phì";
+    else bmiCategory = "Thừa cân";
+  }
+
   return (
     <div className="patient-portal">
       <header className="patient-header">
-        <Logo />
-        <nav aria-label="Patient navigation">
-          <LinkButton href="#find">Tìm bác sĩ</LinkButton>
-          <LinkButton href="#appointments">Lịch hẹn của tôi</LinkButton>
-          <LinkButton href="#records">Hồ sơ sức khỏe</LinkButton>
-        </nav>
-        <div className="patient-header__actions">
-          {user?.role === "ADMIN" && (
-            <Button
-              className="portal-switch portal-switch--patient"
-              variant="secondary"
-              onClick={onAdmin}
-            >
-              <Icon name="grid" />
-              <span>
-                <strong>Quản trị</strong>
-                <small>Duyệt lịch hẹn</small>
+        <div className="patient-header-inner">
+          <div className="patient-header-left">
+            <div className="header-brand-wrap" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+              <span className="brand-logo-gem">
+                <span className="gem-plus">+</span>
               </span>
-              <Icon name="chevron" size={13} />
-            </Button>
-          )}
-          <div className="patient-avatar-wrapper">
-            <Button
-              className="patient-avatar"
-              variant="ghost"
-              onClick={() => setShowUserMenu(!showUserMenu)}
+              <div className="brand-text-col">
+                <span className="brand-title">Hiếu Hải</span>
+                <span className="brand-sub">PHÒNG KHÁM ĐA KHOA</span>
+              </div>
+            </div>
+
+            <nav className="patient-nav" aria-label="Patient navigation">
+              <a href="#find" className="nav-pill active">
+                <Icon name="search" size={15} />
+                <span>Tìm bác sĩ</span>
+              </a>
+              <a href="#appointments" className="nav-pill">
+                <Icon name="calendar" size={15} />
+                <span>Lịch hẹn của tôi</span>
+                {myAppointments.length > 0 && (
+                  <span className="nav-pill-badge">{myAppointments.length}</span>
+                )}
+              </a>
+              <a
+                href="#records"
+                className="nav-pill"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleViewProfile();
+                }}
+              >
+                <Icon name="clipboard" size={15} />
+                <span>Hồ sơ sức khỏe</span>
+              </a>
+              <button
+                type="button"
+                className="nav-pill nav-btn-support"
+                onClick={() => setShowSupportModal(true)}
+              >
+                <Icon name="phone" size={15} />
+                <span>Hỗ trợ 24/7</span>
+              </button>
+            </nav>
+          </div>
+
+          <div className="patient-header__actions">
+            <button
+              type="button"
+              className="btn-header-cta"
+              onClick={() => handleBookAppointment()}
             >
-              <span>{initials}</span>
-              <div>
-                <strong>{user?.fullName || "Bệnh nhân"}</strong>
-                <small>ID #{user?.id ? user.id.slice(0, 8) : "—"}</small>
-              </div>
-              <Icon name="chevron" size={13} />
-            </Button>
-            {showUserMenu && (
-              <div className="patient-avatar-dropdown">
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    setShowProfile(true);
-                    fetchMedicalRecord();
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <Icon name="user" size={14} /> Xem hồ sơ
-                </button>
-                <div className="dropdown-divider" />
-                <button
-                  className="dropdown-item danger"
-                  onClick={() => {
-                    if (onLogout) onLogout();
-                    else {
-                      localStorage.removeItem("token");
-                      localStorage.removeItem("user");
-                      window.location.reload();
-                    }
-                  }}
-                >
-                  <Icon name="log-out" size={14} /> Đăng xuất
-                </button>
-              </div>
+              <Icon name="plus" size={14} />
+              <span>Đặt lịch khám</span>
+            </button>
+
+            {user?.role === "ADMIN" && (
+              <button
+                type="button"
+                className="btn-header-switch"
+                onClick={onAdmin}
+                title="Mở bảng điều khiển Quản trị viên"
+              >
+                <Icon name="grid" size={14} />
+                <span>Quản trị</span>
+              </button>
             )}
+
+            <div className="patient-avatar-wrapper">
+              <button
+                type="button"
+                className="patient-user-chip"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                aria-expanded={showUserMenu}
+              >
+                <span className="user-avatar-disc">{initials}</span>
+                <div className="user-text-meta">
+                  <strong className="user-meta-name">{user?.fullName || "Bệnh Nhân"}</strong>
+                  <span className="user-meta-role">
+                    <span className="live-status-dot" />
+                    <span>Bệnh nhân</span>
+                  </span>
+                </div>
+                <span className={`user-chip-chevron ${showUserMenu ? "active" : ""}`}>
+                  <Icon name="chevron" size={13} />
+                </span>
+              </button>
+
+              {showUserMenu && (
+                <div className="patient-avatar-dropdown modern-dropdown">
+                  <div className="dropdown-user-banner">
+                    <span className="dropdown-avatar-big">{initials}</span>
+                    <div className="dropdown-user-info">
+                      <strong>{user?.fullName || "Bệnh Nhân"}</strong>
+                      <small>{user?.email || "patient@clinic.test"}</small>
+                      {user?.phone && (
+                        <span className="dropdown-phone-chip">
+                          <Icon name="phone" size={11} /> {user.phone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="dropdown-menu-group">
+                    <button
+                      type="button"
+                      className="dropdown-menu-item"
+                      onClick={() => {
+                        setShowProfile(true);
+                        fetchMedicalRecord();
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <span className="menu-icon-wrap teal"><Icon name="user" size={15} /></span>
+                      <div className="menu-text-wrap">
+                        <strong>Hồ sơ &amp; Bệnh án</strong>
+                        <small>Xem và cập nhật chỉ số sức khỏe</small>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dropdown-menu-item"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        const el = document.getElementById("appointments");
+                        if (el) el.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    >
+                      <span className="menu-icon-wrap blue"><Icon name="calendar" size={15} /></span>
+                      <div className="menu-text-wrap">
+                        <strong>Lịch hẹn của tôi</strong>
+                        <small>{myAppointments.length} cuộc hẹn trong hệ thống</small>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dropdown-menu-item"
+                      onClick={() => {
+                        setShowSupportModal(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <span className="menu-icon-wrap amber"><Icon name="phone" size={15} /></span>
+                      <div className="menu-text-wrap">
+                        <strong>Tổng đài hỗ trợ</strong>
+                        <small>Hotline: 1900 1234 (Nhánh 1-4)</small>
+                      </div>
+                    </button>
+
+                    {user?.role === "ADMIN" && (
+                      <button
+                        type="button"
+                        className="dropdown-menu-item"
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          if (onAdmin) onAdmin();
+                        }}
+                      >
+                        <span className="menu-icon-wrap violet"><Icon name="grid" size={15} /></span>
+                        <div className="menu-text-wrap">
+                          <strong>Cổng Quản trị (Admin)</strong>
+                          <small>Quản lý toàn bộ phòng khám</small>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="dropdown-divider" />
+
+                  <div className="dropdown-menu-footer">
+                    <button
+                      type="button"
+                      className="dropdown-logout-btn"
+                      onClick={() => {
+                        if (onLogout) onLogout();
+                        else {
+                          localStorage.removeItem("token");
+                          localStorage.removeItem("user");
+                          window.location.reload();
+                        }
+                      }}
+                    >
+                      <Icon name="logout" size={15} />
+                      <span>Đăng xuất tài khoản</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -400,7 +632,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
       <main className="patient-main">
         <section className="patient-welcome">
           <div>
-            <p>Chào buổi sáng</p>
+            <p>{getTimeGreeting()}</p>
             <Heading level={1}>Xin chào, {user?.fullName || "Quý khách"}!</Heading>
             <span>Quản lý lịch hẹn và thông tin sức khỏe của bạn tại đây.</span>
           </div>
@@ -410,343 +642,612 @@ export function PatientPortal({ onAdmin, onLogout }) {
           </Button>
         </section>
 
-        <section className="patient-search" id="find">
-          <div>
-            <Heading level={2}>Tìm bác sĩ phù hợp</Heading>
-            <p>Tìm kiếm bác sĩ và lịch khám có sẵn.</p>
+        <section className="patient-search-card" id="find">
+          <div className="search-card-header">
+            <div className="search-header-text">
+              <span className="search-eyebrow">
+                <Icon name="search" size={13} />
+                ĐẶT LỊCH KHÁM NHANH CHÓNG
+              </span>
+              <h2>Tìm bác sĩ &amp; Chuyên khoa phù hợp</h2>
+              <p>Tra cứu thông tin bác sĩ, chọn cơ sở và đặt lịch khám dễ dàng tại hệ thống Phòng khám Đa khoa Hiếu Hải</p>
+            </div>
+            {clinicLocations.length > 0 && (
+              <div className="search-branches-badge">
+                <Icon name="building" size={14} />
+                <span>{clinicLocations.length} cơ sở hoạt động</span>
+              </div>
+            )}
           </div>
-          <TextField
-            label="Chuyên khoa hoặc bác sĩ"
-            icon={<Icon name="search" />}
-            placeholder="VD: Tim mạch"
-            value={searchSpecialty}
-            onChange={(e) => setSearchSpecialty(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
-          <TextField
-            label="Địa điểm"
-            icon={<Icon name="building" />}
-            placeholder="Phòng khám Tâm An"
-            value={searchLocation}
-            onChange={(e) => setSearchLocation(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
-          <TextField
-            label="Ngày khám"
-            type="date"
-            icon={<Icon name="calendar" />}
-            value={searchDate}
-            min={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => setSearchDate(e.target.value)}
-            onClear={() => setSearchDate("")}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
-          <Button onClick={handleSearch} disabled={isSearching}>
-            <Icon name="search" />
-            {isSearching ? "Đang tìm..." : "Tìm kiếm"}
-          </Button>
+
+          <div className="search-form-grid">
+            <div className="search-field-group">
+              <label htmlFor="search-specialty-input">
+                <Icon name="search" size={14} />
+                <span>Chuyên khoa hoặc bác sĩ</span>
+              </label>
+              <div className="search-input-wrap">
+                <input
+                  id="search-specialty-input"
+                  type="text"
+                  placeholder="Nhập tên bác sĩ, chuyên khoa (VD: Tim mạch, Nhi...)"
+                  value={searchSpecialty}
+                  onChange={(e) => setSearchSpecialty(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+                {searchSpecialty && (
+                  <button
+                    type="button"
+                    className="clear-btn"
+                    onClick={() => {
+                      setSearchSpecialty("");
+                      handleSearchWithQuery("", searchLocation);
+                    }}
+                    aria-label="Xóa tìm kiếm"
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="search-field-group">
+              <label htmlFor="search-location-select">
+                <Icon name="building" size={14} />
+                <span>Địa điểm cơ sở</span>
+              </label>
+              <div className="search-input-wrap">
+                <select
+                  id="search-location-select"
+                  value={searchLocation}
+                  onChange={(e) => {
+                    const nextLoc = e.target.value;
+                    setSearchLocation(nextLoc);
+                    if (showResults) {
+                      handleSearchWithQuery(searchSpecialty, nextLoc);
+                    }
+                  }}
+                >
+                  <option value="">Tất cả cơ sở ({clinicLocations.length} chi nhánh)</option>
+                  {clinicLocations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.shortName || loc.name} ({loc.city})
+                    </option>
+                  ))}
+                </select>
+                <span className="select-arrow">
+                  <Icon name="chevron" size={12} />
+                </span>
+              </div>
+            </div>
+
+            <div className="search-field-group">
+              <label htmlFor="search-date-input">
+                <Icon name="calendar" size={14} />
+                <span>Ngày khám</span>
+              </label>
+              <div className="search-input-wrap">
+                <input
+                  id="search-date-input"
+                  type="date"
+                  value={searchDate}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+                {searchDate && (
+                  <button
+                    type="button"
+                    className="clear-btn"
+                    onClick={() => setSearchDate("")}
+                    aria-label="Xóa ngày"
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="search-action-group">
+              <span className="action-spacer">&nbsp;</span>
+              <button
+                type="button"
+                className="search-submit-btn"
+                onClick={handleSearch}
+                disabled={isSearching}
+              >
+                <Icon name="search" size={16} />
+                <span>{isSearching ? "Đang tìm..." : "Tìm kiếm"}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="search-tags-row">
+            <span className="tags-label">Gợi ý tìm kiếm:</span>
+            <div className="tags-list">
+              {[
+                { label: "Tim mạch", type: "specialty", val: "Tim mạch" },
+                { label: "Nhi khoa", type: "specialty", val: "Nhi khoa" },
+                { label: "Nội tổng quát", type: "specialty", val: "Nội tổng quát" },
+                { label: "Cơ xương khớp", type: "specialty", val: "Cơ xương khớp" },
+                ...clinicLocations.slice(0, 3).map((l) => ({
+                  label: l.shortName || l.name,
+                  type: "location",
+                  val: l.id,
+                })),
+              ].map((chip, idx) => {
+                const isActive =
+                  chip.type === "location"
+                    ? searchLocation === chip.val
+                    : searchSpecialty === chip.val;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`search-chip ${isActive ? "active" : ""}`}
+                    onClick={() => {
+                      if (chip.type === "specialty") {
+                        const nextVal = searchSpecialty === chip.val ? "" : chip.val;
+                        setSearchSpecialty(nextVal);
+                        handleSearchWithQuery(nextVal, searchLocation);
+                      } else if (chip.type === "location") {
+                        const nextLoc = searchLocation === chip.val ? "" : chip.val;
+                        setSearchLocation(nextLoc);
+                        handleSearchWithQuery(searchSpecialty, nextLoc);
+                      }
+                    }}
+                  >
+                    {chip.type === "location" ? <Icon name="building" size={11} /> : <Icon name="tag" size={11} />}
+                    <span>{chip.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         {/* Search Results */}
         {showResults && (
-          <section className="search-results">
+          <section className="search-results-card">
             <div className="search-results-header">
-              <h3>Kết quả tìm kiếm ({searchResults.length})</h3>
-              <Button variant="ghost" onClick={() => setShowResults(false)}>
-                <Icon name="x" />
-                Đóng
-              </Button>
-            </div>
-            {searchResults.length === 0 ? (
-              <p className="no-results">Không tìm thấy bác sĩ nào phù hợp.</p>
-            ) : (
-              <div className="doctor-list">
-                {searchResults.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="doctor-option"
+              <div>
+                <h3>
+                  Kết quả tìm kiếm
+                  <span className="results-count">({searchResults.length} bác sĩ phù hợp)</span>
+                </h3>
+                {(searchSpecialty || searchLocation) && (
+                  <p className="results-filter-info">
+                    {searchSpecialty && <span>Từ khóa: <strong>"{searchSpecialty}"</strong></span>}
+                    {searchSpecialty && searchLocation && <span> · </span>}
+                    {searchLocation && (
+                      <span>
+                        Cơ sở: <strong>{clinicLocations.find((l) => l.id === searchLocation)?.name || "Đã chọn"}</strong>
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {(searchSpecialty || searchLocation) && (
+                  <button
+                    className="clear-filter-btn"
                     onClick={() => {
-                      setShowResults(false);
-                      handleBookAppointment(doc);
+                      setSearchSpecialty("");
+                      setSearchLocation("");
+                      handleSearchWithQuery("", "");
                     }}
                   >
-                    <span className="avatar teal">
-                      {doc.fullName
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </span>
-                    <div>
-                      <strong>{doc.fullName}</strong>
-                      <small>{doc.title || "Bác sĩ"}</small>
-                      <small>
-                        {doc.specialties?.map((s) => s.name).join(", ") || ""}
-                      </small>
+                    Xem tất cả ({doctors.length || "14"} BS)
+                  </button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setShowResults(false)}>
+                  <Icon name="x" size={14} />
+                  Đóng
+                </Button>
+              </div>
+            </div>
+
+            {searchResults.length === 0 ? (
+              <div className="search-no-results">
+                <span className="no-res-icon"><Icon name="search" size={24} /></span>
+                <p>Không tìm thấy bác sĩ nào phù hợp tại cơ sở này với tiêu chí đã chọn.</p>
+                <button
+                  className="btn-reset-search"
+                  onClick={() => {
+                    setSearchSpecialty("");
+                    setSearchLocation("");
+                    handleSearchWithQuery("", "");
+                  }}
+                >
+                  Hiển thị tất cả bác sĩ trên toàn hệ thống
+                </button>
+              </div>
+            ) : (
+              <div className="search-doctors-grid">
+                {searchResults.map((doc, idx) => {
+                  const docLoc = getDoctorLocation(doc, idx, clinicLocations);
+                  return (
+                    <div
+                      key={doc.id}
+                      className="search-doctor-card"
+                      onClick={() => {
+                        setShowResults(false);
+                        if (searchLocation) setBookingLocation(searchLocation);
+                        else setBookingLocation(docLoc.id);
+                        if (searchDate) setAppointmentDate(searchDate);
+                        handleBookAppointment(doc);
+                      }}
+                    >
+                      <div className="doc-card-top">
+                        <span className="avatar teal doc-avatar">
+                          {doc.fullName
+                            ?.split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </span>
+                        <div className="doc-info">
+                          <strong>{doc.fullName}</strong>
+                          <span className="doc-title">{doc.title || "Bác sĩ chuyên khoa"}</span>
+                          <span className="doc-spec">
+                            {doc.specialties?.map((s) => s.name).join(", ") || "Đa khoa"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="doc-location-tag">
+                        <Icon name="building" size={13} />
+                        <span>{docLoc.name}</span>
+                      </div>
+
+                      <div className="doc-card-action">
+                        <span className="doc-address-sub">{docLoc.address}</span>
+                        <Button variant="secondary" size="sm">
+                          Đặt lịch khám
+                        </Button>
+                      </div>
                     </div>
-                    <Button variant="secondary" size="sm">
-                      Đặt lịch
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
         )}
 
         <div className="patient-grid">
-          <section className="patient-card upcoming" id="appointments">
-            <div className="patient-section-title">
-              <div>
-                <p>Cuộc hẹn tiếp theo</p>
-                <Heading level={2}>
-                  {activeAppointment
-                    ? activeAppointment.doctor?.fullName || "Bác sĩ phụ trách"
-                    : "Chưa có lịch hẹn"}
-                </Heading>
-              </div>
-              <StatusBadge
-                status={
-                  activeAppointment
-                    ? activeAppointment.status === "CONFIRMED"
-                      ? "Confirmed"
-                      : "Pending"
-                    : "Pending"
-                }
-              />
-            </div>
-
-            {activeAppointment ? (
-              <>
-                <div className="appointment-doctor">
-                  <span
-                    style={{
-                      width: "2.7rem",
-                      height: "2.7rem",
-                      borderRadius: "50%",
-                      background: "#dcefeb",
-                      color: "var(--teal)",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: "0.85rem",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {activeAppointment.doctor?.fullName
-                      ? activeAppointment.doctor.fullName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()
-                      : "BS"}
-                  </span>
-                  <div>
-                    <strong>{activeAppointment.service?.name || "Khám chuyên khoa"}</strong>
-                    <small>
-                      Mã lịch:{" "}
-                      <span
-                        style={{
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          color: "var(--teal)",
-                        }}
-                      >
-                        {activeAppointment.bookingCode}
-                      </span>
-                    </small>
-                  </div>
-                </div>
-                <div className="appointment-details">
-                  <div>
-                    <Icon name="calendar" />
-                    <span>
-                      <small>Ngày &amp; giờ</small>
-                      <strong>
-                        {activeAppointment.startTime} – {activeAppointment.endTime},{" "}
-                        {new Date(activeAppointment.appointmentDate).toLocaleDateString(
-                          "vi-VN"
-                        )}
-                      </strong>
-                    </span>
-                  </div>
-                  <div>
-                    <Icon name="building" />
-                    <span>
-                      <small>Địa điểm</small>
-                      <strong>Phòng khám Tâm An</strong>
-                    </span>
-                  </div>
-                </div>
-                <div className="patient-card__actions" style={{ display: "flex", gap: "8px" }}>
-                  <Button variant="secondary" onClick={() => handleBookAppointment()}>
-                    Đặt lịch mới
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    style={{ color: "#b91c1c" }}
-                    onClick={() => handleCancelAppointment(activeAppointment)}
-                    disabled={cancelLoading}
-                  >
-                    {cancelLoading ? "Đang xử lý..." : "Hủy lịch này"}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="appointment-doctor">
-                  <span
-                    style={{
-                      width: "2.7rem",
-                      height: "2.7rem",
-                      borderRadius: "50%",
-                      background: "#dcefeb",
-                      color: "var(--teal)",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: "0.65rem",
-                      fontWeight: 700,
-                    }}
-                  >
-                    TA
-                  </span>
-                  <div>
-                    <strong>Phòng khám Tâm An</strong>
-                    <small>Đặt lịch khám đầu tiên của bạn</small>
-                  </div>
-                </div>
-                <div className="appointment-details">
-                  <div>
-                    <Icon name="calendar" />
-                    <span>
-                      <small>Ngày &amp; giờ</small>
-                      <strong>—</strong>
-                    </span>
-                  </div>
-                  <div>
-                    <Icon name="building" />
-                    <span>
-                      <small>Địa điểm</small>
-                      <strong>Phòng khám Tâm An</strong>
-                    </span>
-                  </div>
-                </div>
-                <div className="patient-card__actions">
-                  <Button variant="secondary" onClick={() => handleBookAppointment()}>
-                    Đặt lịch khám
-                  </Button>
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="patient-card care-team">
-            <div className="patient-section-title">
-              <div>
-                <p>Đội ngũ bác sĩ</p>
-                <Heading level={2}>Chuyên khoa</Heading>
-              </div>
-              <LinkButton onClick={() => setShowAllDoctors(true)}>
-                Xem tất cả
-              </LinkButton>
-            </div>
-            {[
-              ["TM", "BS.CKII Nguyễn Minh An", "Tim mạch", "noi-tong-quat"],
-              ["TH", "BS. Trần Thu Hà", "Nhi khoa", "nhi-khoa"],
-              ["LN", "BS.CKII Lê Hoàng Nam", "Cơ xương khớp", "co-xuong-khop"],
-            ].map(([init, name, role, slug]) => (
-              <div className="care-row" key={slug}>
-                <span
-                  className={`doctor-avatar doctor-avatar--${
-                    ["teal", "blue", "violet"][0]
-                  }`}
-                >
-                  {init}
-                </span>
+          {/* Cột chính: Cuộc hẹn tiếp theo & Tóm tắt sức khỏe */}
+          <div className="patient-main-col">
+            <section className="patient-card upcoming" id="appointments">
+              <div className="patient-section-title">
                 <div>
-                  <strong>{name}</strong>
-                  <small>{role}</small>
+                  <p>Lịch hẹn sắp tới</p>
+                  <Heading level={2}>
+                    {activeAppointment
+                      ? activeAppointment.doctor?.fullName || "Bác sĩ phụ trách"
+                      : "Lịch khám của bạn"}
+                  </Heading>
                 </div>
-                <small>
-                  <b>—</b>
-                  <br />
-                  Chưa khám
-                </small>
-                <Button
-                  className="square"
-                  variant="ghost"
-                  aria-label={`Đặt khám với ${name}`}
-                  onClick={() => {
-                    const found = doctors.find((d) => d.fullName.includes(name));
-                    handleBookAppointment(found || null);
-                  }}
-                >
-                  <Icon name="chevron" />
-                </Button>
+                {activeAppointment && (
+                  <StatusBadge
+                    status={
+                      activeAppointment.status === "CONFIRMED"
+                        ? "Confirmed"
+                        : "Pending"
+                    }
+                  />
+                )}
               </div>
-            ))}
-          </section>
 
-          <section className="patient-card health-summary" id="records">
-            <div className="patient-section-title">
-              <div>
-                <p>Tóm tắt sức khỏe</p>
-                <Heading level={2}>Hồ sơ của bạn</Heading>
-              </div>
-              <LinkButton onClick={handleViewProfile}>Xem hồ sơ</LinkButton>
-            </div>
-            <div className="health-metrics">
-              <div>
-                <span>Cân nặng</span>
-                <strong>{medicalRecord?.weight ? `${medicalRecord.weight} kg` : "—"}</strong>
-                <small>{medicalRecord?.weight ? "Đã cập nhật" : "Chưa cập nhật"}</small>
-              </div>
-              <div>
-                <span>Chiều cao</span>
-                <strong>{medicalRecord?.height ? `${medicalRecord.height} cm` : "—"}</strong>
-                <small>{medicalRecord?.height ? "Đã cập nhật" : "Chưa cập nhật"}</small>
-              </div>
-              <div>
-                <span>Huyết áp</span>
-                <strong>{medicalRecord?.bloodPressure || "—"}</strong>
-                <small>{medicalRecord?.bloodPressure ? "Bình thường" : "Chưa cập nhật"}</small>
-              </div>
-            </div>
-          </section>
+              {activeAppointment ? (
+                <>
+                  <div className="appointment-doctor">
+                    <span className="doctor-avatar-disc">
+                      {activeAppointment.doctor?.fullName
+                        ? activeAppointment.doctor.fullName
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase()
+                        : "BS"}
+                    </span>
+                    <div className="appointment-doc-meta">
+                      <strong>{activeAppointment.doctor?.fullName || "Bác sĩ phụ trách"}</strong>
+                      <span className="service-name">{activeAppointment.service?.name || "Khám chuyên khoa"}</span>
+                      <span className="booking-code-chip">
+                        Mã phiếu: <code>#{activeAppointment.bookingCode}</code>
+                      </span>
+                    </div>
+                  </div>
 
-          <aside className="patient-card portal-quick-actions">
-            <div className="patient-section-title">
-              <div>
-                <p>Thao tác nhanh</p>
-                <Heading level={2}>Tiện ích</Heading>
+                  <div className="appointment-details">
+                    <div className="detail-item">
+                      <span className="detail-icon"><Icon name="calendar" size={17} /></span>
+                      <div>
+                        <small>Thời gian khám</small>
+                        <strong>
+                          {activeAppointment.startTime} – {activeAppointment.endTime},{" "}
+                          {new Date(activeAppointment.appointmentDate).toLocaleDateString("vi-VN")}
+                        </strong>
+                      </div>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-icon"><Icon name="building" size={17} /></span>
+                      {(() => {
+                        const loc = getAppointmentLocation(activeAppointment);
+                        return (
+                          <div>
+                            <small>Địa điểm khám</small>
+                            <strong>{loc.name}</strong>
+                            <small className="loc-address-text">{loc.address}</small>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="patient-card__actions">
+                    <Button variant="secondary" onClick={() => handleBookAppointment()}>
+                      <Icon name="plus" size={14} />
+                      Đặt thêm lịch mới
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="btn-cancel-appt"
+                      onClick={() => handleCancelAppointment(activeAppointment)}
+                      disabled={cancelLoading}
+                    >
+                      <Icon name="x" size={14} />
+                      {cancelLoading ? "Đang xử lý..." : "Hủy lịch này"}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="empty-appointment-state">
+                  <div className="empty-appt-icon-wrap">
+                    <Icon name="calendar" size={26} />
+                  </div>
+                  <div className="empty-appt-content">
+                    <h3>Bạn chưa có lịch hẹn nào sắp tới</h3>
+                    <p>
+                      Đặt lịch khám trực tuyến để được các bác sĩ chuyên khoa tại Phòng khám Đa khoa Hiếu Hải tiếp đón chu đáo và không mất thời gian chờ đợi.
+                    </p>
+                  </div>
+                  <Button variant="primary" className="btn-empty-book" onClick={() => handleBookAppointment()}>
+                    <Icon name="plus" size={15} />
+                    <span>Đặt lịch khám ngay</span>
+                  </Button>
+                  <div className="empty-appt-support-hint">
+                    <Icon name="phone" size={13} />
+                    <span>Hỗ trợ đặt khám 24/7 qua Hotline: <strong>1900 1234</strong></span>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="patient-card health-summary" id="records">
+              <div className="patient-section-title">
+                <div>
+                  <p>Chỉ số sức khỏe</p>
+                  <Heading level={2}>Hồ sơ của bạn</Heading>
+                </div>
+                <LinkButton onClick={handleViewProfile}>
+                  <Icon name="clipboard" size={14} />
+                  <span>{medicalRecord?.id ? "Cập nhật hồ sơ" : "Tạo hồ sơ y tế"}</span>
+                </LinkButton>
               </div>
-            </div>
-            <Button variant="ghost" onClick={() => handleBookAppointment()}>
-              <Icon name="calendar" />
-              <span>Đặt lịch khám</span>
-              <Icon name="chevron" size={13} />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() =>
-                document.getElementById("find")?.scrollIntoView({ behavior: "smooth" })
-              }
-            >
-              <Icon name="doctor" />
-              <span>Tìm bác sĩ</span>
-              <Icon name="chevron" size={13} />
-            </Button>
-            <Button variant="ghost" onClick={() => handleViewProfile()}>
-              <Icon name="chart" />
-              <span>Hồ sơ sức khỏe</span>
-              <Icon name="chevron" size={13} />
-            </Button>
-            <Button variant="ghost" onClick={() => window.open("tel:19001234")}>
-              <Icon name="help" />
-              <span>Liên hệ hỗ trợ</span>
-              <Icon name="chevron" size={13} />
-            </Button>
+
+              <div className="health-metrics-grid">
+                <div className="metric-box">
+                  <div className="metric-top">
+                    <span className="metric-icon weight"><Icon name="activity" size={14} /></span>
+                    <span className="metric-label">Cân nặng</span>
+                  </div>
+                  <strong className="metric-value">
+                    {medicalRecord?.weight ? `${medicalRecord.weight} kg` : "—"}
+                  </strong>
+                  <span className={`metric-sub ${medicalRecord?.weight ? "updated" : "empty"}`}>
+                    {medicalRecord?.weight ? "Đã ghi nhận" : "Chưa cập nhật"}
+                  </span>
+                </div>
+
+                <div className="metric-box">
+                  <div className="metric-top">
+                    <span className="metric-icon height"><Icon name="user" size={14} /></span>
+                    <span className="metric-label">Chiều cao</span>
+                  </div>
+                  <strong className="metric-value">
+                    {medicalRecord?.height ? `${medicalRecord.height} cm` : "—"}
+                  </strong>
+                  <span className={`metric-sub ${medicalRecord?.height ? "updated" : "empty"}`}>
+                    {medicalRecord?.height ? "Đã ghi nhận" : "Chưa cập nhật"}
+                  </span>
+                </div>
+
+                <div className="metric-box">
+                  <div className="metric-top">
+                    <span className="metric-icon bp"><Icon name="activity" size={14} /></span>
+                    <span className="metric-label">Huyết áp</span>
+                  </div>
+                  <strong className="metric-value">
+                    {medicalRecord?.bloodPressure || "—"}
+                  </strong>
+                  <span className={`metric-sub ${medicalRecord?.bloodPressure ? "updated" : "empty"}`}>
+                    {medicalRecord?.bloodPressure ? "Chỉ số bình thường" : "Chưa cập nhật"}
+                  </span>
+                </div>
+
+                <div className="metric-box">
+                  <div className="metric-top">
+                    <span className="metric-icon bmi"><Icon name="chart" size={14} /></span>
+                    <span className="metric-label">Chỉ số BMI</span>
+                  </div>
+                  <strong className="metric-value">
+                    {bmi ? `${bmi}` : "—"}
+                  </strong>
+                  <span className={`metric-sub ${bmi ? "updated" : "empty"}`}>
+                    {bmi ? bmiCategory : "Tự động tính toán"}
+                  </span>
+                </div>
+              </div>
+
+              {!medicalRecord?.weight && !medicalRecord?.height && !medicalRecord?.bloodPressure && (
+                <div className="health-empty-banner" onClick={handleViewProfile}>
+                  <Icon name="clipboard" size={16} />
+                  <span>Chưa có dữ liệu sinh hiệu. Nhấn vào đây để cập nhật hồ sơ theo dõi sức khỏe.</span>
+                  <Icon name="chevron" size={14} />
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* Cột phụ: Bác sĩ nổi bật & Tiện ích (Thao tác nhanh) */}
+          <aside className="patient-side-col">
+            <section className="patient-card care-team">
+              <div className="patient-section-title">
+                <div>
+                  <p>Đội ngũ chuyên gia</p>
+                  <Heading level={2}>Bác sĩ nổi bật</Heading>
+                </div>
+                <LinkButton onClick={() => setShowAllDoctors(true)}>
+                  Xem tất cả {doctors.length > 0 ? `(${doctors.length})` : ""}
+                </LinkButton>
+              </div>
+
+              {(doctors.length > 0 ? doctors.slice(0, 4) : [
+                { id: "d1", fullName: "BS.CKII Nguyễn Minh An", title: "Bác sĩ Chuyên khoa II", specialties: [{ name: "Tim mạch" }] },
+                { id: "d2", fullName: "ThS.BS Trần Thu Hà", title: "Thạc sĩ Bác sĩ", specialties: [{ name: "Nhi khoa" }] },
+                { id: "d3", fullName: "BS.CKII Lê Hoàng Nam", title: "Bác sĩ Chuyên khoa II", specialties: [{ name: "Cơ xương khớp" }] },
+              ]).map((doc, idx) => {
+                const docLoc = getDoctorLocation(doc, idx, clinicLocations);
+                const specName = doc.specialties?.map((s) => s.name).join(", ") || "Đa khoa";
+                const docInitials = doc.fullName
+                  ? doc.fullName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)
+                  : "BS";
+
+                return (
+                  <div
+                    className="care-row clickable"
+                    key={doc.id || idx}
+                    onClick={() => handleBookAppointment(doc)}
+                    title={`Nhấp để đặt lịch khám ngay với ${doc.fullName}`}
+                  >
+                    <span
+                      className={`doctor-avatar doctor-avatar--${
+                        ["teal", "blue", "violet"][idx % 3]
+                      }`}
+                    >
+                      {docInitials}
+                    </span>
+                    <div className="care-doc-info">
+                      <strong>{doc.fullName}</strong>
+                      <span className="care-doc-spec">{doc.title || "Bác sĩ"} • {specName}</span>
+                      <small className="care-doc-loc">
+                        <Icon name="building" size={11} /> {docLoc.shortName || docLoc.name}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-book-quick"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBookAppointment(doc);
+                      }}
+                      title="Đặt lịch khám"
+                    >
+                      <span>Đặt khám</span>
+                      <Icon name="chevron" size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+            </section>
+
+            <aside className="patient-card portal-quick-actions">
+              <div className="patient-section-title">
+                <div>
+                  <p>Trợ giúp &amp; Dịch vụ</p>
+                  <Heading level={2}>Tiện ích nhanh</Heading>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="quick-action-btn"
+                onClick={() => handleBookAppointment()}
+              >
+                <span className="quick-action-icon-disc teal">
+                  <Icon name="calendar" size={18} />
+                </span>
+                <div className="quick-action-text">
+                  <strong>Đặt lịch khám mới</strong>
+                  <small>Đặt hẹn trực tuyến nhanh chóng</small>
+                </div>
+                <span className="quick-action-chevron">
+                  <Icon name="chevron" size={14} />
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="quick-action-btn"
+                onClick={() => {
+                  setDoctorFilter("");
+                  setShowAllDoctors(true);
+                }}
+              >
+                <span className="quick-action-icon-disc blue">
+                  <Icon name="doctor" size={18} />
+                </span>
+                <div className="quick-action-text">
+                  <strong>Tra cứu đội ngũ bác sĩ</strong>
+                  <small>Xem danh sách chuyên khoa &amp; lịch</small>
+                </div>
+                <span className="quick-action-chevron">
+                  <Icon name="chevron" size={14} />
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="quick-action-btn"
+                onClick={() => handleViewProfile()}
+              >
+                <span className="quick-action-icon-disc violet">
+                  <Icon name="clipboard" size={18} />
+                </span>
+                <div className="quick-action-text">
+                  <strong>Hồ sơ &amp; Bệnh án của tôi</strong>
+                  <small>Theo dõi chỉ số sinh hiệu cá nhân</small>
+                </div>
+                <span className="quick-action-chevron">
+                  <Icon name="chevron" size={14} />
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="quick-action-btn"
+                onClick={() => setShowSupportModal(true)}
+              >
+                <span className="quick-action-icon-disc amber">
+                  <Icon name="phone" size={18} />
+                </span>
+                <div className="quick-action-text">
+                  <strong>Tổng đài hỗ trợ 24/7</strong>
+                  <small>Hotline CSKH: 1900 1234</small>
+                </div>
+                <span className="quick-action-chevron">
+                  <Icon name="chevron" size={14} />
+                </span>
+              </button>
+            </aside>
           </aside>
         </div>
       </main>
@@ -813,7 +1314,35 @@ export function PatientPortal({ onAdmin, onLogout }) {
             {/* Step 1: Bác sĩ & Dịch vụ */}
             {bookingStep === 1 && (
               <div className="drawer-section">
-                <h3>1. Chọn bác sĩ</h3>
+                <h3>1. Chọn cơ sở phòng khám</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+                  {clinicLocations.map((loc) => {
+                    const isSelected = bookingLocation === loc.id;
+                    return (
+                      <div
+                        key={loc.id}
+                        onClick={() => setBookingLocation(loc.id)}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          border: isSelected ? "2px solid var(--teal)" : "1px solid var(--border)",
+                          background: isSelected ? "rgba(13, 148, 136, 0.06)" : "#fff",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <strong style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: isSelected ? "var(--teal)" : "#0f172a" }}>
+                          <Icon name="building" size={14} /> {loc.shortName}
+                        </strong>
+                        <small style={{ display: "block", fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                          {loc.address}
+                        </small>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <h3>2. Chọn bác sĩ</h3>
                 {loading ? (
                   <p style={{ color: "#64748b", fontSize: 13 }}>Đang tải danh sách bác sĩ...</p>
                 ) : (
@@ -856,7 +1385,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
                         marginBottom: 8,
                       }}
                     >
-                      <h3 style={{ margin: 0 }}>2. Chọn dịch vụ khám</h3>
+                      <h3 style={{ margin: 0 }}>3. Chọn dịch vụ khám</h3>
                       <small style={{ color: "#64748b" }}>
                         {services.length} dịch vụ
                       </small>
@@ -898,6 +1427,12 @@ export function PatientPortal({ onAdmin, onLogout }) {
             {bookingStep === 2 && (
               <div className="drawer-section">
                 <div className="booking-summary-box">
+                  <div className="booking-summary-row">
+                    <span className="booking-summary-label">Cơ sở khám:</span>
+                    <span className="booking-summary-val" style={{ fontWeight: 600, color: "var(--teal)" }}>
+                      {clinicLocations.find((l) => l.id === bookingLocation)?.shortName || clinicLocations.find((l) => l.id === bookingLocation)?.name}
+                    </span>
+                  </div>
                   <div className="booking-summary-row">
                     <span className="booking-summary-label">Bác sĩ:</span>
                     <span className="booking-summary-val">{selectedDoctor?.fullName}</span>
@@ -1038,6 +1573,18 @@ export function PatientPortal({ onAdmin, onLogout }) {
               <div className="drawer-section">
                 <div className="booking-summary-box">
                   <div className="booking-summary-row">
+                    <span className="booking-summary-label">Cơ sở khám:</span>
+                    <span className="booking-summary-val" style={{ fontWeight: 600 }}>
+                      {clinicLocations.find((l) => l.id === bookingLocation)?.name}
+                    </span>
+                  </div>
+                  <div className="booking-summary-row" style={{ marginTop: -4 }}>
+                    <span className="booking-summary-label">Địa chỉ:</span>
+                    <span className="booking-summary-val" style={{ fontSize: 11, color: "#64748b" }}>
+                      {clinicLocations.find((l) => l.id === bookingLocation)?.fullAddress || clinicLocations.find((l) => l.id === bookingLocation)?.address}
+                    </span>
+                  </div>
+                  <div className="booking-summary-row">
                     <span className="booking-summary-label">Bác sĩ:</span>
                     <span className="booking-summary-val">{selectedDoctor?.fullName}</span>
                   </div>
@@ -1143,6 +1690,24 @@ export function PatientPortal({ onAdmin, onLogout }) {
 
                   <div className="booking-details-card">
                     <div className="booking-summary-row">
+                      <span className="booking-summary-label">Cơ sở khám:</span>
+                      <span className="booking-summary-val" style={{ fontWeight: 600 }}>
+                        {bookedResult.location?.name || clinicLocations.find((l) => l.id === bookingLocation)?.name}
+                      </span>
+                    </div>
+                    <div className="booking-summary-row" style={{ marginTop: -4 }}>
+                      <span className="booking-summary-label">Địa chỉ:</span>
+                      <span className="booking-summary-val" style={{ fontSize: 11, color: "#64748b" }}>
+                        {bookedResult.location?.fullAddress || clinicLocations.find((l) => l.id === bookingLocation)?.fullAddress || clinicLocations.find((l) => l.id === bookingLocation)?.address}
+                      </span>
+                    </div>
+                    <div className="booking-summary-row">
+                      <span className="booking-summary-label">Hotline cơ sở:</span>
+                      <span className="booking-summary-val" style={{ color: "var(--teal)", fontWeight: 600 }}>
+                        {bookedResult.location?.hotline || clinicLocations.find((l) => l.id === bookingLocation)?.hotline}
+                      </span>
+                    </div>
+                    <div className="booking-summary-row">
                       <span className="booking-summary-label">Bác sĩ:</span>
                       <span className="booking-summary-val">
                         {bookedResult.doctor?.fullName || selectedDoctor?.fullName}
@@ -1167,12 +1732,6 @@ export function PatientPortal({ onAdmin, onLogout }) {
                       <span className="booking-summary-label">Bệnh nhân:</span>
                       <span className="booking-summary-val">
                         {bookedResult.patientName} ({bookedResult.patientPhone})
-                      </span>
-                    </div>
-                    <div className="booking-summary-row">
-                      <span className="booking-summary-label">Địa điểm:</span>
-                      <span className="booking-summary-val">
-                        Phòng khám Tâm An (Tầng 1)
                       </span>
                     </div>
                     <div className="booking-summary-row">
@@ -1286,39 +1845,59 @@ export function PatientPortal({ onAdmin, onLogout }) {
       {showAllDoctors && (
         <>
           <div className="drawer-backdrop" onClick={() => setShowAllDoctors(false)} />
-          <aside className="drawer">
+          <aside className="drawer" style={{ width: "480px" }}>
             <div className="drawer-head">
               <div>
-                <span className="micro-label">ĐỘI NGŨ</span>
+                <span className="micro-label">ĐỘI NGŨ CHUYÊN GIA</span>
                 <h2>Tất cả bác sĩ</h2>
               </div>
               <button onClick={() => setShowAllDoctors(false)}><Icon name="x" /></button>
             </div>
             <div className="drawer-section">
+              <div style={{ marginBottom: "16px" }}>
+                <TextField
+                  placeholder="Tìm theo tên bác sĩ hoặc chuyên khoa..."
+                  icon={<Icon name="search" size={16} />}
+                  value={doctorFilter}
+                  onChange={(e) => setDoctorFilter(e.target.value)}
+                  onClear={() => setDoctorFilter("")}
+                />
+              </div>
               {loading ? (
-                <p>Đang tải...</p>
+                <p style={{ textAlign: "center", padding: "20px 0", color: "var(--muted)" }}>Đang tải danh sách bác sĩ...</p>
               ) : (
                 <div className="doctor-list">
-                  {doctors.map(doc => (
-                    <div 
-                      key={doc.id}
-                      className={`doctor-option ${selectedDoctor?.id === doc.id ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedDoctor(doc);
-                        setSelectedSpecialty(doc.specialties?.[0] || null);
-                        setShowAllDoctors(false);
-                        setTimeout(() => handleBookAppointment(doc), 100);
-                      }}
-                    >
-                      <span className="avatar teal">{doc.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}</span>
-                      <div>
-                        <strong>{doc.fullName}</strong>
-                        <small>{doc.title || 'Bác sĩ'}</small>
-                        <small>{doc.specialties?.map(s => s.name).join(', ') || ''}</small>
-                      </div>
-                      <Button variant="secondary" size="sm">Chọn</Button>
+                  {filteredDoctors.length === 0 ? (
+                    <div className="no-results" style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)" }}>
+                      <p>Không tìm thấy bác sĩ phù hợp với từ khóa.</p>
+                      {doctorFilter && (
+                        <Button variant="ghost" size="sm" onClick={() => setDoctorFilter("")} style={{ marginTop: "8px" }}>
+                          Xem tất cả bác sĩ
+                        </Button>
+                      )}
                     </div>
-                  ))}
+                  ) : (
+                    filteredDoctors.map(doc => (
+                      <div 
+                        key={doc.id}
+                        className={`doctor-option ${selectedDoctor?.id === doc.id ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedDoctor(doc);
+                          setSelectedSpecialty(doc.specialties?.[0] || null);
+                          setShowAllDoctors(false);
+                          setTimeout(() => handleBookAppointment(doc), 100);
+                        }}
+                      >
+                        <span className="avatar teal">{doc.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}</span>
+                        <div>
+                          <strong>{doc.fullName}</strong>
+                          <small>{doc.title || 'Bác sĩ'}</small>
+                          <small>{doc.specialties?.map(s => s.name).join(', ') || ''}</small>
+                        </div>
+                        <Button variant="secondary" size="sm">Đặt lịch</Button>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -1421,6 +2000,215 @@ export function PatientPortal({ onAdmin, onLogout }) {
           </aside>
         </>
       )}
+
+      {/* Support Contact Drawer */}
+      {showSupportModal && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setShowSupportModal(false)} />
+          <aside className="drawer" style={{ width: "480px" }}>
+            <div className="drawer-head">
+              <div>
+                <span className="micro-label">TRỢ GIÚP 24/7</span>
+                <h2>Liên hệ &amp; Hỗ trợ</h2>
+              </div>
+              <button onClick={() => setShowSupportModal(false)}>
+                <Icon name="x" />
+              </button>
+            </div>
+
+            <div className="drawer-section" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Card Hotline */}
+              <div className="support-card hotline">
+                <div className="support-card-header">
+                  <div className="support-icon-badge teal">
+                    <Icon name="phone" size={20} />
+                  </div>
+                  <div>
+                    <span className="support-badge-label">TỔNG ĐÀI ĐẶT LỊCH &amp; TƯ VẤN</span>
+                    <h3 className="support-phone-number">1900 1234</h3>
+                    <p className="support-sub">Hoạt động 24/7 (Cước gọi: 1.000đ/phút)</p>
+                  </div>
+                </div>
+                <div className="support-card-actions">
+                  <a
+                    href="tel:19001234"
+                    className="btn primary"
+                    style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <Icon name="phone" size={15} /> Gọi ngay 1900 1234
+                  </a>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      navigator.clipboard?.writeText("19001234");
+                      setCopyHotlineSuccess(true);
+                      setTimeout(() => setCopyHotlineSuccess(false), 2000);
+                    }}
+                  >
+                    <Icon name={copyHotlineSuccess ? "check" : "clipboard"} size={15} />
+                    {copyHotlineSuccess ? "Đã chép số!" : "Sao chép số"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Card Emergency */}
+              <div className="support-card emergency">
+                <div className="support-card-header">
+                  <div className="support-icon-badge red">
+                    <Icon name="activity" size={20} />
+                  </div>
+                  <div>
+                    <span className="support-badge-label red">CẤP CỨU Y TẾ KHẨN CẤP</span>
+                    <h3 className="support-phone-number red">028 3822 9999</h3>
+                    <p className="support-sub">Đội phản ứng nhanh tiếp nhận cấp cứu 24/24</p>
+                  </div>
+                </div>
+                <div className="support-card-actions">
+                  <a
+                    href="tel:02838229999"
+                    className="btn secondary"
+                    style={{
+                      color: "var(--rose)",
+                      borderColor: "#fecdd3",
+                      background: "#fff1f2",
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Icon name="phone" size={15} /> Gọi cấp cứu
+                  </a>
+                </div>
+              </div>
+
+              {/* Card Clinic Details with 4 Branches */}
+              <div className="support-info-list">
+                <div style={{ marginBottom: 4 }}>
+                  <strong style={{ fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon name="building" size={16} style={{ color: "var(--teal)" }} /> Hệ thống {clinicLocations.length} cơ sở Phòng khám Đa khoa Hiếu Hải
+                  </strong>
+                </div>
+                {clinicLocations.map((loc) => (
+                  <div key={loc.id} className="support-info-item" style={{ padding: "8px 0", borderBottom: "1px dashed var(--border)" }}>
+                    <div style={{ width: "100%" }}>
+                      <strong style={{ fontSize: 13, color: "var(--teal)" }}>{loc.name}</strong>
+                      <p style={{ margin: "2px 0", fontSize: 12, color: "#475569" }}>{loc.fullAddress}</p>
+                      <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 11, color: "#64748b" }}>
+                        <span>Điện thoại: <strong>{loc.phone}</strong></span>
+                        <span>Hotline: <strong style={{ color: "var(--teal)" }}>{loc.hotline}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="support-info-item" style={{ marginTop: 8 }}>
+                  <Icon name="clock" size={18} />
+                  <div>
+                    <strong>Giờ tiếp nhận khám bệnh</strong>
+                    <p>Thứ Hai – Chủ Nhật: 07:00 – 20:00 (kể cả ngày Lễ)</p>
+                  </div>
+                </div>
+                <div className="support-info-item">
+                  <Icon name="mail" size={18} />
+                  <div>
+                    <strong>Email tiếp nhận ý kiến</strong>
+                    <p>hotro@phongkhamhieuhai.vn</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="drawer-footer">
+              <Button variant="secondary" onClick={() => setShowSupportModal(false)}>
+                Đóng
+              </Button>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="patient-mobile-bottom-nav" aria-label="Mobile Navigation">
+        <a href="#find" className="mobile-nav-item active">
+          <Icon name="search" size={18} />
+          <span>Tìm kiếm</span>
+        </a>
+        <a href="#appointments" className="mobile-nav-item">
+          <Icon name="calendar" size={18} />
+          <span>Lịch hẹn</span>
+          {myAppointments.length > 0 && (
+            <span className="mobile-nav-badge">{myAppointments.length}</span>
+          )}
+        </a>
+        <button
+          type="button"
+          className="mobile-nav-item"
+          onClick={() => handleViewProfile()}
+        >
+          <Icon name="clipboard" size={18} />
+          <span>Hồ sơ</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-item"
+          onClick={() => setShowSupportModal(true)}
+        >
+          <Icon name="phone" size={18} />
+          <span>CSKH 24/7</span>
+        </button>
+      </nav>
+
+      {/* Custom Confirm Modal for Cancelling Appointment */}
+      <ConfirmModal
+        isOpen={Boolean(cancelModalAppointment)}
+        onClose={() => !cancelLoading && setCancelModalAppointment(null)}
+        onConfirm={handleConfirmCancelAppointment}
+        title="Xác nhận hủy lịch khám"
+        subtitle={`Mã phiếu khám: #${cancelModalAppointment?.bookingCode}`}
+        confirmText="Xác nhận hủy lịch"
+        cancelText="Giữ lại lịch"
+        variant="danger"
+        loading={cancelLoading}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
+            Bạn có chắc chắn muốn hủy lịch hẹn khám với bác sĩ{" "}
+            <strong style={{ color: "#0f172a" }}>
+              {cancelModalAppointment?.doctor?.fullName || "Bác sĩ phụ trách"}
+            </strong>{" "}
+            vào lúc{" "}
+            <strong style={{ color: "#0f172a" }}>
+              {cancelModalAppointment?.startTime} ngày{" "}
+              {cancelModalAppointment?.appointmentDate
+                ? new Date(cancelModalAppointment.appointmentDate).toLocaleDateString("vi-VN")
+                : ""}
+            </strong>
+            ?
+          </p>
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#fffbeb",
+              border: "1px solid #fef3c7",
+              borderRadius: 8,
+              fontSize: 12,
+              color: "#92400e",
+              lineHeight: 1.5,
+            }}
+          >
+            ⚠️ Lưu ý: Thao tác này không thể hoàn tác sau khi đã xác nhận.
+          </div>
+        </div>
+      </ConfirmModal>
+
+      {/* Custom Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1497,7 +2285,11 @@ function AuthScreen({ mode, navigate }) {
           navigate("dashboard");
         }
       } catch (err) {
-        setError(err.response?.data?.message || "Email hoặc mật khẩu không chính xác.");
+        if (!err.response) {
+          setError("Không thể kết nối đến máy chủ backend (Port 4000). Vui lòng đảm bảo server đang chạy.");
+        } else {
+          setError(err.response?.data?.message || "Email hoặc mật khẩu không chính xác.");
+        }
       } finally {
         setLoading(false);
       }
@@ -1619,34 +2411,120 @@ function AuthScreen({ mode, navigate }) {
             </>
           )}
         </div>
-        <footer className="auth-footer"><span>© 2025 Medora Health Systems</span><span>Quyền riêng tư · Bảo mật · Hỗ trợ</span></footer>
+        <footer className="auth-footer"><span>© 2025 Phòng khám Đa khoa Hiếu Hải</span><span>Quyền riêng tư · Bảo mật · Hỗ trợ</span></footer>
       </section>
+
     </main>
   );
 }
 
-// ─── APP ROOT ──────────────────────────────────────────────────────────────────
-export default function App() {
-  const [screen, setScreen] = useState(() => {
-    const token = localStorage.getItem("token");
-    const keepSignedIn = localStorage.getItem("keepMeSignedIn");
-    if (token && keepSignedIn) {
-      try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        return user?.role === "ADMIN" ? "dashboard" : "patient";
-      } catch { return "login"; }
+// ─── ROUTING & APP ROOT ────────────────────────────────────────────────────────
+function getPathForScreen(scr) {
+  switch (scr) {
+    case "dashboard":
+      return "/admin";
+    case "patient":
+      return "/patient";
+    case "register":
+      return "/register";
+    case "forgot":
+      return "/forgot";
+    case "login":
+    default:
+      return "/login";
+  }
+}
+
+function resolveInitialScreen() {
+  const path = (window.location.pathname || "/").toLowerCase();
+  const token = localStorage.getItem("token");
+  let user = null;
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) user = JSON.parse(raw);
+  } catch {}
+
+  if (token && user) {
+    const isAdmin = user.role === "ADMIN";
+    if (path === "/admin") {
+      if (!isAdmin) {
+        window.history.replaceState(null, "", "/patient");
+        return "patient";
+      }
+      return "dashboard";
     }
-    return "login";
-  });
+    if (path === "/patient") return "patient";
+    if (isAdmin) {
+      window.history.replaceState(null, "", "/admin");
+      return "dashboard";
+    }
+    window.history.replaceState(null, "", "/patient");
+    return "patient";
+  }
+
+  // Not authenticated:
+  if (path === "/register") return "register";
+  if (path === "/forgot") return "forgot";
+  if (path === "/admin" || path === "/patient") {
+    window.history.replaceState(null, "", "/login");
+  }
+  return "login";
+}
+
+export default function App() {
+  const [screen, setScreen] = useState(resolveInitialScreen);
+
+  const navigateTo = (nextScreen) => {
+    const targetPath = getPathForScreen(nextScreen);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, "", targetPath);
+    }
+    setScreen(nextScreen);
+  };
+
+  useEffect(() => {
+    const onPopState = () => {
+      setScreen(resolveInitialScreen());
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (screen === "dashboard") {
+      document.title = "Quản Trị Hệ Thống | Phòng khám Đa khoa Hiếu Hải";
+    } else if (screen === "patient") {
+      document.title = "Cổng Bệnh Nhân | Phòng khám Đa khoa Hiếu Hải";
+    } else if (screen === "register") {
+      document.title = "Đăng Ký Tài Khoản | Phòng khám Đa khoa Hiếu Hải";
+    } else if (screen === "forgot") {
+      document.title = "Quên Mật Khẩu | Phòng khám Đa khoa Hiếu Hải";
+    } else {
+      document.title = "Đăng Nhập | Phòng khám Đa khoa Hiếu Hải";
+    }
+  }, [screen]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("keepMeSignedIn");
-    setScreen("login");
+    navigateTo("login");
   };
 
-  if (screen === "dashboard") return <AdminDashboard onLogout={handleLogout} onPatient={() => setScreen("patient")} />;
-  if (screen === "patient") return <PatientPortal onAdmin={() => setScreen("dashboard")} onLogout={handleLogout} />;
-  return <AuthScreen mode={screen} navigate={setScreen} />;
+  if (screen === "dashboard") {
+    return (
+      <AdminDashboard
+        onLogout={handleLogout}
+      />
+    );
+  }
+  if (screen === "patient") {
+    return (
+      <PatientPortal
+        onAdmin={() => navigateTo("dashboard")}
+        onLogout={handleLogout}
+      />
+    );
+  }
+  return <AuthScreen mode={screen} navigate={navigateTo} />;
 }

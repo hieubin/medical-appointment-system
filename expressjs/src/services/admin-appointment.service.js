@@ -109,7 +109,7 @@ function groupKey(date, groupBy) {
   return value.toISOString().slice(0, 10);
 }
 
-export async function appointmentStatistics(query) {
+export async function appointmentStatistics(query = {}) {
   const appointments = await prisma.appointment.findMany({
     where: {
       ...buildWhere(query),
@@ -119,16 +119,26 @@ export async function appointmentStatistics(query) {
   });
   const byStatus = Object.fromEntries(statuses.map((status) => [status, 0]));
   const byPeriod = new Map();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let todayCount = 0;
+
   for (const appointment of appointments) {
-    byStatus[appointment.status] += 1;
-    const key = groupKey(appointment.appointmentDate, query.groupBy);
+    if (byStatus[appointment.status] !== undefined) {
+      byStatus[appointment.status] += 1;
+    }
+    const aptDateStr = new Date(appointment.appointmentDate).toISOString().slice(0, 10);
+    if (aptDateStr === todayStr) {
+      todayCount += 1;
+    }
+    const key = groupKey(appointment.appointmentDate, query.groupBy || "day");
     byPeriod.set(key, (byPeriod.get(key) || 0) + 1);
   }
   return {
     from: query.from,
     to: query.to,
-    groupBy: query.groupBy,
+    groupBy: query.groupBy || "day",
     total: appointments.length,
+    todayCount,
     byStatus,
     byPeriod: [...byPeriod.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([period, count]) => ({ period, count })),
   };

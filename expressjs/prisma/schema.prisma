@@ -182,3 +182,19 @@ model MedicalRecord {
 
   @@index([userId])
 }
+
+model Location {
+  id          String   @id @default(uuid())
+  name        String
+  shortName   String
+  address     String
+  fullAddress String?
+  city        String   @default("TP. Hồ Chí Minh")
+  phone       String?
+  hotline     String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}

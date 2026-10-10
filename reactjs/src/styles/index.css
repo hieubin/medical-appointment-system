@@ -293,11 +293,10 @@ input[type=checkbox]{accent-color:var(--teal)}.quick-actions{display:flex;gap:5p
 }
 
 .auth-stats strong {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: #ffffff;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .auth-stats small {

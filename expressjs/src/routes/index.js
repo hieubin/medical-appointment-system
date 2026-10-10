@@ -18,4 +18,4 @@ router.use("/doctors", doctorRouter);
 router.use("/services", serviceRouter);
 router.use("/appointments", appointmentRouter);
 router.use("/medical-records", medicalRecordRouter);
-router.use("/admin", authenticate, requireRoles("ADMIN", "STAFF"), adminRouter);
+router.use("/admin", authenticate, requireRoles("ADMIN"), adminRouter);

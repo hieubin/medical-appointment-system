@@ -118,9 +118,8 @@ Sau khi seed dữ liệu (`npm run prisma:seed`), hệ thống có sẵn các t�
 
 | Vai trò | Email | Mật khẩu | Mô tả chức năng |
 |---|---|---|---|
-| **Admin** | `admin@clinic.test` | `Admin123!` | Quản lý toàn bộ hệ thống, bác sĩ, chuyên khoa, dịch vụ, ca khám |
-| **Staff** | `staff@clinic.test` | `Staff123!` | Nhân viên lễ tân tiếp nhận & xử lý lịch hẹn |
-| **Patient** | `patient@clinic.test` | `Patient123!` | Bệnh nhân đặt lịch, theo dõi lịch sử khám bệnh |
+| **Admin** | `admin@clinic.test` | `Admin123!` | Tài khoản có sẵn, duyệt lịch hẹn và quản lý bác sĩ, chuyên khoa, dịch vụ |
+| **Patient** | `patient@clinic.test` | `Patient123!` | Bệnh nhân tự đăng ký để đặt lịch và theo dõi lịch khám |
 
 ---
 

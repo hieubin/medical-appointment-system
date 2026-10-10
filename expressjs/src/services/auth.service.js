@@ -40,21 +40,21 @@ export async function login({ email, password }) {
   };
 }
 
-export async function register({ email, password, firstName, lastName, clinicName, phone }) {
+export async function register({ email, password, firstName, lastName, phone }) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw Object.assign(new Error("Email này đã được sử dụng. Vui lòng đăng nhập hoặc chọn email khác."), { status: 409 });
   }
 
-  const fullName = [firstName, lastName].filter(Boolean).join(" ") || clinicName || email.split("@")[0];
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
       fullName,
-      phone: phone || null,
-      role: clinicName ? "STAFF" : "PATIENT",
+      phone,
+      role: "PATIENT",
       status: "ACTIVE",
     },
   });

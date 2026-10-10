@@ -54,7 +54,7 @@ function Topbar({ tab }) {
   return (
     <header className="admin-topbar">
       <div className="breadcrumb">
-        <span>Workspace</span><i>/</i><strong>{titles[tab] || "Tổng quan"}</strong>
+        <span>Bệnh viện</span><i>/</i><strong>{titles[tab] || "Tổng quan"}</strong>
       </div>
     </header>
   );

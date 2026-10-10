@@ -338,7 +338,7 @@ export function PatientPortal({ onAdmin, onLogout }) {
           <LinkButton href="#records">Hồ sơ sức khỏe</LinkButton>
         </nav>
         <div className="patient-header__actions">
-          {(user?.role === "ADMIN" || user?.role === "STAFF") && (
+          {user?.role === "ADMIN" && (
             <Button
               className="portal-switch portal-switch--patient"
               variant="secondary"
@@ -346,8 +346,8 @@ export function PatientPortal({ onAdmin, onLogout }) {
             >
               <Icon name="grid" />
               <span>
-                <strong>Staff admin</strong>
-                <small>Mở bảng điều khiển</small>
+                <strong>Quản trị</strong>
+                <small>Duyệt lịch hẹn</small>
               </span>
               <Icon name="chevron" size={13} />
             </Button>
@@ -1432,7 +1432,7 @@ function AuthScreen({ mode, navigate }) {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [clinic, setClinic] = useState("");
+  const [phone, setPhone] = useState("");
   const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1444,9 +1444,9 @@ function AuthScreen({ mode, navigate }) {
   }, [mode]);
 
   const copy = {
-    login: ["Chào mừng trở lại", "Đăng nhập vào workspace phòng khám của bạn"],
-    register: ["Tạo workspace của bạn", "Thiết lập quyền truy cập bảo mật cho đội ngũ phòng khám"],
-    forgot: ["Đặt lại mật khẩu", "Chúng tôi sẽ gửi liên kết đặt lại đến email công việc của bạn"],
+    login: ["Chào mừng trở lại", "Đăng nhập để đặt lịch và theo dõi lịch khám của bạn"],
+    register: ["Tạo tài khoản bệnh nhân", "Tài khoản dùng để đăng ký khám và theo dõi lịch hẹn tại bệnh viện"],
+    forgot: ["Đặt lại mật khẩu", "Chúng tôi sẽ gửi liên kết đặt lại đến email của bạn"],
   }[mode] || ["", ""];
 
   const handleSubmit = async (e) => {
@@ -1466,7 +1466,7 @@ function AuthScreen({ mode, navigate }) {
         const response = await api.post("/auth/register", {
           email: email.trim(), password,
           firstName: firstName.trim(), lastName: lastName.trim(),
-          clinicName: clinic.trim(),
+          phone: phone.trim(),
         });
         const data = response.data?.data;
         if (data?.accessToken) {
@@ -1474,7 +1474,7 @@ function AuthScreen({ mode, navigate }) {
           localStorage.setItem("user", JSON.stringify(data.user));
           if (keepSignedIn) localStorage.setItem("keepMeSignedIn", "true");
         }
-        navigate("dashboard");
+        navigate("patient");
       } catch (err) {
         setError(err.response?.data?.message || "Đăng ký không thành công.");
       } finally {
@@ -1492,7 +1492,7 @@ function AuthScreen({ mode, navigate }) {
           localStorage.setItem("token", data.accessToken);
           localStorage.setItem("user", JSON.stringify(data.user));
           if (keepSignedIn) localStorage.setItem("keepMeSignedIn", "true");
-          navigate(data.user?.role === "PATIENT" ? "patient" : "dashboard");
+          navigate(data.user?.role === "ADMIN" ? "dashboard" : "patient");
         } else {
           navigate("dashboard");
         }
@@ -1515,13 +1515,13 @@ function AuthScreen({ mode, navigate }) {
       <section className="auth-aside">
         <Logo inverse />
         <div className="auth-aside-copy">
-          <span><Icon name="shield" />HỆ THỐNG QUẢN LÝ PHÒNG KHÁM</span>
-          <Heading level={1}>Quản lý phòng khám chuyên nghiệp và hiệu quả.</Heading>
-          <p>Một workspace duy nhất cho lịch hẹn, luồng bệnh nhân, điều phối nhân sự và báo cáo vận hành.</p>
+          <span><Icon name="shield" />ĐẶT LỊCH KHÁM BỆNH</span>
+          <Heading level={1}>Đặt lịch khám tại bệnh viện, nhanh và rõ ràng.</Heading>
+          <p>Một tài khoản bệnh nhân để chọn chuyên khoa, bác sĩ, khung giờ và theo dõi lịch hẹn.</p>
           <div className="auth-stats">
-            <div><strong>99.99%</strong><small>Uptime hệ thống</small></div>
-            <div><strong>256-bit</strong><small>Mã hóa dữ liệu</small></div>
-            <div><strong>24/7</strong><small>Hỗ trợ ưu tiên</small></div>
+            <div><strong>Online</strong><small>Đặt lịch khám</small></div>
+            <div><strong>Lịch hẹn</strong><small>Theo dõi trạng thái</small></div>
+            <div><strong>Hồ sơ</strong><small>Thông tin sức khỏe</small></div>
           </div>
         </div>
         <div className="compliance">
@@ -1543,14 +1543,14 @@ function AuthScreen({ mode, navigate }) {
             <div className="success-state">
               <span><Icon name="mail" size={25} /></span>
               <Heading level={1}>Kiểm tra hộp thư</Heading>
-              <p>Chúng tôi đã gửi hướng dẫn đặt lại mật khẩu đến <strong>{email || "alex@centralclinic.vn"}</strong>.</p>
+              <p>Chúng tôi đã gửi hướng dẫn đặt lại mật khẩu đến <strong>{email || "email của bạn"}</strong>.</p>
               <Button onClick={() => navigate("login")}> Quay lại đăng nhập</Button>
               <Button variant="ghost" onClick={() => setSent(false)}>Không nhận được? Gửi lại</Button>
             </div>
           ) : (
             <>
               <div className="auth-heading">
-                <span>{mode === "login" ? "CỔNG NHÂN VIÊN" : mode === "register" ? "TỔ CHỨC MỚI" : "KHÔI PHỤC TÀI KHOẢN"}</span>
+                <span>{mode === "login" ? "BỆNH NHÂN" : mode === "register" ? "ĐĂNG KÝ KHÁM BỆNH" : "KHÔI PHỤC TÀI KHOẢN"}</span>
                 <Heading level={1}>{copy[0]}</Heading>
                 <p>{copy[1]}</p>
               </div>
@@ -1564,14 +1564,14 @@ function AuthScreen({ mode, navigate }) {
               <form onSubmit={handleSubmit}>
                 {mode === "register" && (
                   <div className="field-row">
-                    <TextField label="Họ" placeholder="Alex" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                    <TextField label="Tên" placeholder="Tran" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                    <TextField label="Họ" placeholder="Nguyễn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                    <TextField label="Tên" placeholder="An" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                   </div>
                 )}
                 {mode === "register" && (
-                  <TextField label="Tên phòng khám" icon={<Icon name="building" />} placeholder="Phòng khám Trung tâm" value={clinic} onChange={(e) => setClinic(e.target.value)} />
+                  <TextField label="Số điện thoại" icon={<Icon name="phone" />} placeholder="0901234567" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required />
                 )}
-                <TextField label="Email công việc" icon={<Icon name="mail" />} placeholder="name@clinic.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <TextField label="Email" icon={<Icon name="mail" />} placeholder="ban@email.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 {mode !== "forgot" && (
                   <TextField label="Mật khẩu" icon={<Icon name="lock" />} placeholder={mode === "register" ? "Tối thiểu 8 ký tự" : "Nhập mật khẩu"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 )}
@@ -1591,7 +1591,7 @@ function AuthScreen({ mode, navigate }) {
                 )}
 
                 <Button className="submit" type="submit" disabled={loading}>
-                  {loading ? "Đang xử lý…" : mode === "login" ? "Đăng nhập workspace" : mode === "register" ? "Tạo workspace" : "Gửi liên kết đặt lại"}
+                  {loading ? "Đang xử lý…" : mode === "login" ? "Đăng nhập" : mode === "register" ? "Tạo tài khoản" : "Gửi liên kết đặt lại"}
                   <Icon name="chevron" />
                 </Button>
               </form>
@@ -1610,19 +1610,10 @@ function AuthScreen({ mode, navigate }) {
                 </div>
               )}
 
-              {mode !== "forgot" && (
-                <>
-                  <div className="divider"><span>hoặc tiếp tục với</span></div>
-                  <Button className="sso" variant="secondary" onClick={() => alert("Google SSO yêu cầu cấu hình tenant.")}>
-                    <b>G</b>Đăng nhập với Google Workspace
-                  </Button>
-                </>
-              )}
-
               <p className="auth-switch">
-                {mode === "login" ? "Mới dùng Medora?" : mode === "register" ? "Đã có tài khoản?" : "Nhớ mật khẩu?"}{" "}
+                {mode === "login" ? "Chưa có tài khoản?" : mode === "register" ? "Đã có tài khoản?" : "Nhớ mật khẩu?"}{" "}
                 <Button variant="ghost" onClick={() => navigate(mode === "login" ? "register" : "login")}>
-                  {mode === "login" ? "Tạo workspace" : "Đăng nhập"}
+                  {mode === "login" ? "Đăng ký khám bệnh" : "Đăng nhập"}
                 </Button>
               </p>
             </>
@@ -1642,7 +1633,7 @@ export default function App() {
     if (token && keepSignedIn) {
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
-        return user?.role === "PATIENT" ? "patient" : "dashboard";
+        return user?.role === "ADMIN" ? "dashboard" : "patient";
       } catch { return "login"; }
     }
     return "login";

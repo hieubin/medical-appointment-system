@@ -59,8 +59,7 @@ const appointments = [
 ];
 
 const demoUsers = [
-  { email: "admin@clinic.test", password: "Admin123!", fullName: "Admin Phòng Khám", role: "ADMIN" },
-  { email: "staff@clinic.test", password: "Staff123!", fullName: "Nhân Viên Lễ Tân", role: "STAFF" },
+  { email: "admin@clinic.test", password: "Admin123!", fullName: "Admin Bệnh Viện", role: "ADMIN" },
   { email: "bacsi1@clinic.test", password: "Doctor123!", fullName: "BS. Nguyễn Minh An", role: "DOCTOR" },
   { email: "bacsi2@clinic.test", password: "Doctor123!", fullName: "BS. Trần Thu Hà", role: "DOCTOR" },
   { email: "patient@clinic.test", password: "Patient123!", fullName: "Bệnh Nhân Demo", role: "PATIENT" },
@@ -84,6 +83,8 @@ async function main() {
       create: { email: demoUser.email, passwordHash, fullName: demoUser.fullName, role: demoUser.role, status: "ACTIVE" },
     });
   }
+  const removedStaff = await prisma.user.deleteMany({ where: { role: "STAFF" } });
+  if (removedStaff.count) console.log(`✅ Đã gỡ ${removedStaff.count} tài khoản nhân viên`);
   console.log(`✅ ${demoUsers.length} users`);
 
   // Specialties
@@ -185,7 +186,6 @@ async function main() {
   console.log("\n🎉 Seed hoàn tất!");
   console.log("\n📋 Tài khoản demo:");
   console.log("   Admin: admin@clinic.test / Admin123!");
-  console.log("   Staff: staff@clinic.test / Staff123!");
   console.log("   Patient: patient@clinic.test / Patient123!");
 }
 

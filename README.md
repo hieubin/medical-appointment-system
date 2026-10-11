@@ -71,6 +71,66 @@ Web chạy ở http://localhost:3000 và tự gọi API qua `/api`.
 
 Nếu quên mật khẩu trên giao diện: màn hình chỉ báo đã gửi email. Hệ thống chưa gửi email thật, nên demo dùng hai tài khoản ở trên.
 
-## Nếu giảng viên hỏi công nghệ
+## Công nghệ, nói được khi bị hỏi
 
-Giao diện viết bằng React. Máy chủ viết bằng Express. Dữ liệu để trong SQLite. Mật khẩu được băm, không lưu dạng thường. Trang quản trị chỉ mở khi tài khoản là admin.
+Đồ án chia hai phần, nói chuyện với nhau bằng API.
+
+| Phần | Thư mục | Việc nó làm | Công nghệ |
+|---|---|---|---|
+| Giao diện | `reactjs` | Màn đăng nhập, cổng bệnh nhân, trang admin | React, Vite, Axios |
+| Máy chủ | `expressjs` | Nhận yêu cầu, kiểm tra quyền, đọc ghi dữ liệu | Express, Prisma, SQLite |
+
+Trình duyệt không mở file database. Nó gọi địa chỉ `/api/...`. Máy dev thì Vite chuyển `/api` sang Express ở cổng 4000. Lên mạng thì giao diện nằm trên Vercel, API nằm trên Render.
+
+Máy chủ viết theo kiểu tách lớp, dễ chỉ trên sơ đồ:
+
+- `routes` nhận đường dẫn, ví dụ `/api/auth/login`, `/api/appointments`.
+- `controllers` lấy dữ liệu từ request rồi gọi xử lý.
+- `services` chứa luật: đặt lịch, hủy lịch, đổi trạng thái.
+- `schemas` dùng Zod để chặn dữ liệu sai trước khi vào database.
+- Prisma là lớp nói chuyện với SQLite.
+
+Trang admin nằm sau `/api/admin`. Request phải kèm token và tài khoản phải là `ADMIN`. Bệnh nhân gọi được các API công khai: đăng ký, đăng nhập, xem bác sĩ, đặt lịch, tra cứu phiếu.
+
+## SQLite trong đồ án này
+
+SQLite là database nằm trọn trong **một file**, không cần cài MySQL hay mở server database riêng. File đó là:
+
+`expressjs/prisma/data/medical.db`
+
+Biến `DATABASE_URL` trỏ tới file này, dạng `file:./data/medical.db`. Prisma đọc file `schema.prisma` để biết có những bảng nào, rồi dùng lệnh `npx prisma db push` tạo bảng trong file `.db`. Lệnh `npm run prisma:seed` đổ dữ liệu mẫu: tài khoản, 10 chuyên khoa, bác sĩ, dịch vụ, lịch làm thứ Hai–thứ Sáu, và 10 phiếu `APT-001-2026` đến `APT-010-2026`.
+
+Copy file `medical.db` sang máy khác là mang theo cả dữ liệu. Vì vậy bản trên Render cũng dùng chính file này, production có cùng bác sĩ, cơ sở và lịch mẫu với máy local.
+
+Các bảng, gọi tên cho dễ nhớ:
+
+| Bảng | Giữ cái gì |
+|---|---|
+| User | Tài khoản. Vai trò chỉ có bệnh nhân hoặc admin |
+| AuthSession | Phiên đăng nhập, hết hạn thì token không dùng được |
+| Location | 4 cơ sở |
+| Specialty | Chuyên khoa |
+| Doctor | Bác sĩ, nối với chuyên khoa qua DoctorSpecialty |
+| Service | Dịch vụ khám, có thời lượng và giá |
+| WorkingSchedule | Giờ làm của bác sĩ, mỗi suất 30 phút |
+| Appointment | Phiếu khám: mã, bệnh nhân, bác sĩ, ngày, giờ, trạng thái |
+| AppointmentStatusHistory | Lịch sử mỗi lần đổi trạng thái |
+| MedicalRecord | Hồ sơ sức khỏe của bệnh nhân demo |
+
+Phiếu mới do bệnh nhân đặt có mã `MA-` cộng 8 ký tự. Phiếu có sẵn khi seed thì mã `APT-...`.
+
+## Đăng nhập nói ngắn
+
+Mật khẩu không lưu chữ thường. Lúc tạo tài khoản, bcrypt băm mật khẩu rồi mới ghi vào cột `passwordHash`.
+
+Đăng nhập đúng thì server ký một JWT, sống 8 giờ, và tạo một dòng trong `AuthSession`. Giao diện giữ token trong `localStorage`, mỗi request gửi kèm header `Authorization: Bearer ...`. Server kiểm tra chữ ký JWT, rồi kiểm tra phiên còn hạn và chưa bị thu hồi.
+
+Đăng ký công khai luôn gán vai trò `PATIENT`. Gõ đúng `admin@clinic.test` mới vào `/admin`. Người không phải admin mà mở `/admin` thì bị đưa về cổng bệnh nhân.
+
+## Một lần đặt lịch đi qua đâu
+
+1. Bệnh nhân chọn cơ sở, bác sĩ, ngày. Giao diện hỏi API các giờ còn trống.
+2. Server lấy lịch làm thứ Hai–thứ Sáu, bỏ giờ đã qua, bỏ giờ đã có phiếu Chờ xác nhận hoặc Đã xác nhận.
+3. Bệnh nhân gửi form. Server tạo dòng `Appointment` trạng thái `PENDING` và một dòng lịch sử.
+4. Admin xác nhận. Server chỉ cho đi đúng chiều trạng thái, rồi ghi thêm lịch sử.
+5. Bệnh nhân tải lại cổng của mình và thấy trạng thái mới, vì cả hai bên đọc cùng file SQLite.

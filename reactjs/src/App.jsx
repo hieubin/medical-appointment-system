@@ -1026,6 +1026,97 @@ export function PatientPortal({ onAdmin, onLogout }) {
               )}
             </section>
 
+            {/* Tất cả lịch hẹn - Danh sách đầy đủ */}
+            {myAppointments.length > 0 && (
+              <section className="patient-card all-appointments">
+                <div className="patient-section-title">
+                  <div>
+                    <p>Quản lý lịch hẹn</p>
+                    <Heading level={2}>Tất cả lịch hẹn ({myAppointments.length})</Heading>
+                  </div>
+                </div>
+
+                <div className="all-appointments-list">
+                  {myAppointments.map((apt) => {
+                    const isActive = ["PENDING", "CONFIRMED"].includes(apt.status);
+                    const docInitials = apt.doctor?.fullName
+                      ? apt.doctor.fullName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()
+                      : "BS";
+                    const aptLoc = getAppointmentLocation(apt);
+
+                    return (
+                      <div
+                        key={apt.id}
+                        className={`appt-history-card ${isActive ? "active" : ""} ${apt.status === "CANCELLED" ? "cancelled" : ""} ${apt.status === "COMPLETED" ? "completed" : ""} ${apt.status === "NO_SHOW" ? "no-show" : ""}`}
+                      >
+                        <div className="appt-history-top">
+                          <div className="appt-history-doctor">
+                            <span className={`doctor-avatar-disc small ${isActive ? "" : "muted"}`}>
+                              {docInitials}
+                            </span>
+                            <div className="appt-history-meta">
+                              <strong>{apt.doctor?.fullName || "Bác sĩ phụ trách"}</strong>
+                              <span className="appt-history-service">
+                                {apt.service?.name || "Khám chuyên khoa"}
+                              </span>
+                            </div>
+                          </div>
+                          <StatusBadge status={apt.status} />
+                        </div>
+
+                        <div className="appt-history-details">
+                          <div className="appt-history-detail-item">
+                            <Icon name="calendar" size={14} />
+                            <span>
+                              {apt.startTime} – {apt.endTime},{" "}
+                              {new Date(apt.appointmentDate).toLocaleDateString("vi-VN")}
+                            </span>
+                          </div>
+                          <div className="appt-history-detail-item">
+                            <Icon name="building" size={14} />
+                            <span>{aptLoc.name}</span>
+                          </div>
+                          <div className="appt-history-detail-item">
+                            <Icon name="tag" size={14} />
+                            <span>
+                              Mã phiếu: <code>#{apt.bookingCode}</code>
+                            </span>
+                          </div>
+                        </div>
+
+                        {apt.cancelReason && (
+                          <div className="appt-history-cancel-reason">
+                            <Icon name="alert" size={13} />
+                            <span>Lý do hủy: {apt.cancelReason}</span>
+                          </div>
+                        )}
+
+                        {isActive && (
+                          <div className="appt-history-actions">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="btn-cancel-appt"
+                              onClick={() => handleCancelAppointment(apt)}
+                              disabled={cancelLoading}
+                            >
+                              <Icon name="x" size={13} />
+                              Hủy lịch
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             <section className="patient-card health-summary" id="records">
               <div className="patient-section-title">
                 <div>

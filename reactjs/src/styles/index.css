@@ -2112,6 +2112,171 @@ td > small { display: block; font-size: 12px; color: #64748b; margin-top: 2px; l
   background: #fef2f2 !important;
 }
 
+/* ─── All Appointments List (Patient Portal) ─── */
+.all-appointments {
+  padding: 0;
+}
+
+.all-appointments > .patient-section-title {
+  padding: 18px 20px 14px;
+}
+
+.all-appointments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.appt-history-card {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  transition: background 0.15s ease;
+  position: relative;
+}
+
+.appt-history-card:hover {
+  background: #f8fffe;
+}
+
+.appt-history-card.active {
+  border-left: 3px solid #0d9488;
+}
+
+.appt-history-card.cancelled {
+  border-left: 3px solid #dc2626;
+  opacity: 0.75;
+}
+
+.appt-history-card.cancelled:hover {
+  opacity: 1;
+}
+
+.appt-history-card.completed {
+  border-left: 3px solid #1d4ed8;
+}
+
+.appt-history-card.no-show {
+  border-left: 3px solid #94a3b8;
+  opacity: 0.7;
+}
+
+.appt-history-card.no-show:hover {
+  opacity: 1;
+}
+
+.appt-history-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.appt-history-doctor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.doctor-avatar-disc.small {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.2);
+}
+
+.doctor-avatar-disc.small.muted {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  box-shadow: 0 1px 4px rgba(100, 116, 139, 0.15);
+}
+
+.appt-history-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.appt-history-meta strong {
+  font-size: 13.5px;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appt-history-service {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.appt-history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 4px;
+}
+
+.appt-history-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.appt-history-detail-item svg {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.appt-history-detail-item code {
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 11.5px;
+  color: #0d9488;
+  font-weight: 600;
+  background: #f0fdfa;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.appt-history-cancel-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: #991b1b;
+  line-height: 1.45;
+}
+
+.appt-history-cancel-reason svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #dc2626;
+}
+
+.appt-history-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #f1f5f9;
+}
+
 /* Care Team Featured Doctors */
 .care-team .care-row {
   min-height: 4.4rem;

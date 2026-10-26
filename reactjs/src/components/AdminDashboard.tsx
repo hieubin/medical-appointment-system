@@ -1177,7 +1177,7 @@ function ServiceModal({ isOpen, mode, service, specialties, onClose, onSaved }) 
       description: description.trim() || undefined,
       durationMinutes: Number(durationMinutes) || 30,
       price: numPrice,
-      specialtyId: specialtyId || undefined,
+      specialtyId: specialtyId || null,
       status,
     };
 

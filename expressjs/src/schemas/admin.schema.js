@@ -27,12 +27,12 @@ export const doctorBodySchema = z.object({
 });
 
 export const serviceBodySchema = z.object({
-  name: z.string().trim().min(2).max(150),
+  name: z.string().trim().min(2, "Tên dịch vụ tối thiểu 2 ký tự").max(150),
   slug: z.string().trim().min(2).max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   description: z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().trim().max(1000).optional()),
   durationMinutes: z.coerce.number().int().positive().max(480),
-  price: z.union([z.string(), z.number()]).transform((value) => BigInt(value)),
-  specialtyId: z.preprocess((val) => (val === "" || val === null ? undefined : val), idSchema.optional()),
+  price: z.coerce.number().int().nonnegative().max(2000000000),
+  specialtyId: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : val), idSchema.nullable().optional()),
   status: statusSchema.optional(),
 });
 

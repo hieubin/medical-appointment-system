@@ -103,8 +103,31 @@ export function listAdminServices() {
   return prisma.service.findMany({ orderBy: { name: "asc" }, include: { specialty: { select: { id: true, name: true, slug: true } } } }).then((services) => services.map(serializeService));
 }
 
-export function createService(data) {
-  return prisma.service.create({ data, include: { specialty: { select: { id: true, name: true, slug: true } } } }).then(serializeService);
+function slugify(text) {
+  return (text || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export async function createService(data) {
+  let slug = data.slug;
+  if (!slug) {
+    const baseSlug = slugify(data.name) || `service-${Date.now()}`;
+    slug = baseSlug;
+    let count = 1;
+    while (await prisma.service.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${count++}`;
+    }
+  }
+  return prisma.service.create({
+    data: { ...data, slug },
+    include: { specialty: { select: { id: true, name: true, slug: true } } },
+  }).then(serializeService);
 }
 
 export function updateService(id, data) {

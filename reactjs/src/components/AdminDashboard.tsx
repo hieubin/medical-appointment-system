@@ -447,6 +447,27 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
   const [drawer, setDrawer] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
+  const [statusCounts, setStatusCounts] = useState({ All: 0, PENDING: 0, CONFIRMED: 0, COMPLETED: 0, CANCELLED: 0, NO_SHOW: 0 });
+
+  // Fetch số lượng thực tế mỗi trạng thái từ API thống kê — chỉ gọi 1 lần khi mount
+  const fetchStatusCounts = useCallback(() => {
+    api.get("/admin/statistics/appointments")
+      .then((r) => {
+        const byStatus = r.data?.data?.byStatus || r.data?.byStatus || {};
+        const total = r.data?.data?.total ?? r.data?.total ?? 0;
+        setStatusCounts({
+          All: total,
+          PENDING: byStatus.PENDING ?? 0,
+          CONFIRMED: byStatus.CONFIRMED ?? 0,
+          COMPLETED: byStatus.COMPLETED ?? 0,
+          CANCELLED: byStatus.CANCELLED ?? 0,
+          NO_SHOW: byStatus.NO_SHOW ?? 0,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchStatusCounts(); }, [fetchStatusCounts]);
 
   const fetchData = useCallback((page = 1) => {
     setLoading(true);
@@ -472,6 +493,8 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
       await api.patch(`/admin/appointments/${id}/status`, payload);
       setItems(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
       if (drawer?.id === id) setDrawer(prev => ({ ...prev, status: newStatus }));
+      // Cập nhật lại số đếm sau khi đổi trạng thái
+      fetchStatusCounts();
     } catch (err) {
       console.error("Lỗi cập nhật trạng thái:", err);
     }
@@ -481,10 +504,8 @@ function Appointments({ setTab, selectedLocation = "all", setSelectedLocation, l
     ? items
     : items.filter(a => getAppointmentLocation(a, locations).id === selectedLocation);
 
-  const tabCounts = { All: filteredItems.length, PENDING: 0, CONFIRMED: 0, COMPLETED: 0, CANCELLED: 0, NO_SHOW: 0 };
-  filteredItems.forEach(a => {
-    if (tabCounts.hasOwnProperty(a.status)) tabCounts[a.status]++;
-  });
+  // Dùng statusCounts từ API thống kê — số thực tế, không bị ảnh hưởng bởi trang/tab đang xem
+  const tabCounts = statusCounts;
 
   const pages = [];
   for (let i = 1; i <= meta.totalPages; i++) pages.push(i);

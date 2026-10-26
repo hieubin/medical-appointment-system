@@ -2029,6 +2029,44 @@ export function PatientPortal({ onAdmin, onLogout }) {
                       placeholder="VD: 170"
                     />
                   </div>
+
+                  {/* BMI tự động tính từ cân nặng + chiều cao đã nhập */}
+                  {(() => {
+                    const w = parseFloat(profileForm.weight);
+                    const h = parseFloat(profileForm.height);
+                    if (!w || !h || h <= 0) return null;
+                    const formBmi = (w / Math.pow(h / 100, 2)).toFixed(1);
+                    const formBmiVal = parseFloat(formBmi);
+                    let formBmiCat = "";
+                    let formBmiColor = "#64748b";
+                    if (formBmiVal < 18.5) { formBmiCat = "Thể trạng gầy"; formBmiColor = "#0ea5e9"; }
+                    else if (formBmiVal < 23) { formBmiCat = "Chuẩn y khoa"; formBmiColor = "#10b981"; }
+                    else if (formBmiVal < 25) { formBmiCat = "Tiền béo phì"; formBmiColor = "#f59e0b"; }
+                    else { formBmiCat = "Thừa cân"; formBmiColor = "#ef4444"; }
+                    return (
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        background: "#f0fdf4", border: "1px solid #bbf7d0",
+                        borderRadius: 10, padding: "12px 16px", margin: "4px 0 8px",
+                      }}>
+                        <span style={{ fontSize: 28, fontWeight: 800, color: formBmiColor, lineHeight: 1 }}>
+                          {formBmi}
+                        </span>
+                        <div>
+                          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Chỉ số BMI
+                          </div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: formBmiColor }}>
+                            {formBmiCat}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>
+                            Tự động tính từ cân nặng &amp; chiều cao
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="form-row">
                     <TextField 
                       label="Huyết áp" 
